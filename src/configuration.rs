@@ -11,14 +11,14 @@ use crate::domain::SubscriberEmail;
 // In production environment, the values may be overridden by environment variables. See `get_configuration()`.
 // Settings will be deserialized from toml files. the struct field name is equivalent to the toml key name.
 // For which toml file to use, see `get_configuration()`.
-#[derive(Deserialize)]
+#[derive(Deserialize, Clone)]
 pub struct Settings {
     pub database: DatabaseSettings,
     pub application: ApplicationSettings,
     pub email_client: EmailClientSettings,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Clone)]
 pub struct ApplicationSettings {
     pub host: String,
     #[serde(deserialize_with = "deserialize_number_from_string")]

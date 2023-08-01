@@ -32,6 +32,8 @@ lint:
 test:
     TEST_LOG=true cargo test | bunyan
 
+build_test:
+    cargo build --tests
 
 init_db:
     bash scripts/init_db.sh
@@ -64,3 +66,4 @@ fix:
     cargo fix --allow-dirty && cargo clippy --fix --allow-dirty
 
 pre-commit:prepare_db fix format test
+

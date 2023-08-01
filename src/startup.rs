@@ -10,16 +10,29 @@ use crate::configuration::{DatabaseSettings, Settings};
 use crate::email_client::EmailClient;
 use crate::routes::{health_check, subscribe};
 
-#[allow(dead_code)]
-struct Application {
+pub struct Application {
     server: Server,
     port: u16,
 }
 
-#[allow(dead_code)]
 impl Application {
-    pub async fn build(_configuration: Settings) -> Result<Self, String> {
-        todo!()
+    pub async fn build(configuration: Settings) -> Result<Self, std::io::Error> {
+        let connection_pool = get_connection_pool(&configuration.database);
+        let email_sender = configuration
+            .email_client
+            .sender()
+            .expect("Invalid email sender address");
+        let timeout = configuration.email_client.timeout();
+        let email_client = EmailClient::new(
+            configuration.email_client.base_url,
+            email_sender,
+            configuration.email_client.authorization_token,
+            timeout,
+        );
+        let listener = TcpListener::bind(configuration.application.addr())?;
+        let port = listener.local_addr().unwrap().port();
+        let server = run(listener, connection_pool, email_client)?;
+        Ok(Self { server, port })
     }
 
     pub fn port(&self) -> u16 {
