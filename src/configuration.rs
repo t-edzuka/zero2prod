@@ -1,5 +1,4 @@
 use secrecy::{ExposeSecret, Secret};
-
 use serde::Deserialize;
 use serde_aux::field_attributes::deserialize_number_from_string;
 use sqlx::postgres::{PgConnectOptions, PgSslMode};
@@ -23,6 +22,7 @@ pub struct ApplicationSettings {
     pub host: String,
     #[serde(deserialize_with = "deserialize_number_from_string")]
     pub port: u16,
+    pub base_url: String,
 }
 
 impl ApplicationSettings {
@@ -81,6 +81,7 @@ impl EmailClientSettings {
     }
 }
 
+///# Read configurations from toml or environment variables.
 pub fn get_configuration() -> Result<Settings, config::ConfigError> {
     let base_path = std::env::current_dir().expect("Failed to determine current directory");
     let configuration_directory = base_path.join("configurations");

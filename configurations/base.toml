@@ -13,8 +13,3 @@ base_url = "localhost"
 sender_email = "test@gmail.com"
 authorization_token = "dev-secret-token"
 timeout_milliseconds = 5000
-
-
-
-
-
