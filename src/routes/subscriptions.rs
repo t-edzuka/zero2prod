@@ -168,11 +168,7 @@ pub async fn send_confirmation_email(
 pub fn generate_subscription_token() -> String {
     let mut rng = thread_rng();
     std::iter::repeat_with(|| rng.sample(Alphanumeric))
-<<<<<<< HEAD
         .map(char::from)
-=======
-        .map(|random_byte: u8| char::from(random_byte))
->>>>>>> cb90b82 (:white_check_mark: chapter-7.6.2 Integrate confirmation subscriber token store)
         .take(25)
         .collect()
 }
