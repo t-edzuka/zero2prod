@@ -1,0 +1,6 @@
+# For docker environment, we have to use host: 0.0.0.0
+[application]
+host = "0.0.0.0"
+[database]
+require_ssl = true
+# For digital ocean environment, we use spec.yaml file in envs section to set the database host. See spec.yaml file for more details.

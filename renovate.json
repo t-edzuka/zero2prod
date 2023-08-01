@@ -1,0 +1,18 @@
+{
+  "extends": [
+    "config:base"
+  ],
+  "cargo": {
+    "enabled": true
+  },
+  "automerge": true,
+  "platformAutomerge": true,
+  "packageRules": [
+    {
+      "matchDepTypes": [
+        "devDependencies"
+      ],
+      "automerge": true
+    }
+  ]
+}
