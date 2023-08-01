@@ -39,7 +39,7 @@ async fn the_link_returned_by_subscribe_returns_a_200_if_called() {
 
 // Calling GET /subscriptions/confirmation endpoint confirmed the subscription
 #[tokio::test]
-async fn calling_http_get_on_the_cofirmation_link_confirms_a_subscriber() {
+async fn calling_http_get_on_the_confirmation_link_confirms_a_subscriber() {
     // Arrange
     let test_app = spawn_app().await;
     let body = "name=le%20guin&email=ursula_le_guin%40gmail.com";
