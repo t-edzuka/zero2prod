@@ -29,6 +29,7 @@ unicode-segmentation = "1.10.1"
 validator = "0.16"
 reqwest = { version = "0.11.18", default_features = false, features = ["json", "rustls-tls"] }
 rand = { version = "0.8.5", features = ["std_rng"] }
+thiserror = "1.0.44"
 
 [dependencies.sqlx]
 version = "0.7.1"

@@ -45,7 +45,7 @@ pub async fn subscribe(
     base_url: web::Data<ApplicationBaseUrl>,
 ) -> Result<HttpResponse, SubscribeError> {
     use crate::routes::SubscribeError::*;
-    let new_subscriber = form.0.try_into()?;
+    let new_subscriber = form.0.try_into().map_err(ValidationError)?;
     let mut transaction = pool.begin().await.map_err(PoolError)?;
     let subscriber_id = insert_subscriber(&mut transaction, &new_subscriber)
         .await
@@ -150,83 +150,38 @@ fn error_chain_fmt(
     Ok(())
 }
 
+#[derive(thiserror::Error)]
 pub enum SubscribeError {
+    // Inner #[error(/*..*/)] content derives automatically Display implementation!
+    // StringはError traitを持たない.これ自身がErrorのRootであると考えて #[source], #[from]なし.
+    #[error("{0}")]
     ValidationError(String),
 
-    StoreTokenError(StoreTokenError),
-    SendEmailError(reqwest::Error),
-    PoolError(sqlx::Error),
-    InsertSubscriberError(sqlx::Error),
-    TransactionCommitError(sqlx::Error),
+    #[error("Failed to acquire a Postgres connection from the pool.")]
+    // #[source] attribute では SubscribeError::sourceメソッドで返却される型を指定する.
+    // 自動的に match ...のような実装がされる.
+    PoolError(#[source] sqlx::Error),
+
+    #[error("Failed to insert a new subscriber in the database.")]
+    InsertSubscriberError(#[source] sqlx::Error),
+
+    #[error("Failed to store the confirmation token for a new subscriber.")]
+    // #[from] attributeで impl From<StoreTokenError> for SubscribeErrorを自動実装する.
+    // #[from]があれば 同時に#[source]と同様に
+    // SubscribeError::sourceメソッドがStoreTokenErrorを返すように自動実装がなされる.
+    StoreTokenError(#[from] StoreTokenError),
+
+    #[error("Failed to commit SQL transaction to store a new subscriber and tokens")]
+    TransactionCommitError(#[source] sqlx::Error),
+
+    #[error("Failed to send an confirmation email for a new subscriber.")]
+    // #[from] attributeで impl From<reqwest::Error> for SubscribeErrorを自動実装する
+    SendEmailError(#[from] reqwest::Error),
 }
 
 impl std::fmt::Debug for SubscribeError {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         error_chain_fmt(self, f)
-    }
-}
-
-impl std::fmt::Display for SubscribeError {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        use SubscribeError::*;
-        match self {
-            ValidationError(e) => {
-                write!(f, "{}", e)
-            }
-            StoreTokenError(_) => {
-                write!(
-                    f,
-                    "Failed to store a confirmation token for a new subscriber."
-                )
-            }
-            PoolError(_) => {
-                write!(f, "Failed to acquire a Postgres connection from the pool.")
-            }
-            TransactionCommitError(_) => {
-                write!(
-                    f,
-                    "Failed to commit SQL transaction to store a new subscriber."
-                )
-            }
-            InsertSubscriberError(_) => {
-                write!(f, "Failed to insert a new subscriber in the database.")
-            }
-            SendEmailError(_) => {
-                write!(f, "Failed to send an email for a new subscriber.")
-            }
-        }
-    }
-}
-
-impl std::error::Error for SubscribeError {
-    fn source(&self) -> Option<&(dyn Error + 'static)> {
-        use SubscribeError::*;
-        match self {
-            ValidationError(_) => None, // &str does not implement `Error`, we consider it the route cause of error.
-            InsertSubscriberError(e) => Some(e),
-            PoolError(e) => Some(e),
-            TransactionCommitError(e) => Some(e),
-            StoreTokenError(e) => Some(e),
-            SendEmailError(e) => Some(e),
-        }
-    }
-}
-
-impl From<StoreTokenError> for SubscribeError {
-    fn from(e: StoreTokenError) -> Self {
-        Self::StoreTokenError(e)
-    }
-}
-
-impl From<String> for SubscribeError {
-    fn from(e: String) -> Self {
-        Self::ValidationError(e)
-    }
-}
-
-impl From<reqwest::Error> for SubscribeError {
-    fn from(e: reqwest::Error) -> Self {
-        Self::SendEmailError(e)
     }
 }
 
