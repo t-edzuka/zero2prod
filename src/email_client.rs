@@ -10,7 +10,7 @@ pub struct EmailClient {
     // ? SubscriberEmail is a domain type, so why is it used here?
     base_url: String,
     // external service url to send email
-    authorization_token: Secret<String>, // ? This is a secret. Should it be here?
+    authorization_token: Secret<String>,
 }
 
 impl EmailClient {
@@ -76,7 +76,7 @@ impl EmailClient {
 ///   -H "X-Postmark-Server-Token: xxx-yyy-zzz" \
 ///   -d '{
 ///         "From": "info@example.com",
-///         "To": "info@example.com",
+///         "To": "dummy_destination@gmail.com",
 ///         "Subject": "Hello from Postmark",
 ///         "HtmlBody": "<strong>Hello</strong> dear Postmark user.",
 ///         "MessageStream": "broadcast"
@@ -139,7 +139,7 @@ mod tests {
         Paragraph(1..10).fake()
     }
 
-    fn timeout_ms(timeout_milliseconds: u64) -> std::time::Duration {
+    fn timeout_ms(timeout_milliseconds: u64) -> Duration {
         Duration::from_millis(timeout_milliseconds)
     }
 

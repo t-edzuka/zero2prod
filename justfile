@@ -4,7 +4,7 @@ alias t := test
 alias f := format
 alias l := lint
 alias d := dev
-alias ct := create_table
+alias ct := create_ms
 alias b := build
 
 run:
@@ -50,8 +50,8 @@ clear-db:
 reinit-db:clear-db init_db
 
 
-
-create_table script_name: init_db
+# Create a new migration script
+create_ms script_name: init_db
     export DATABASE_URL={{DATABASE_URL}}
     sqlx migrate add {{ script_name }}
 
@@ -67,3 +67,11 @@ fix:
 
 pre-commit:prepare_db fix format test
 
+
+# Test in chapter 8
+# sqlx logs are a bit noisy, so we cut them out to make the output more readable
+#    export TEST_LOG=true && \
+t8:
+    export TEST_LOG=enabled && \
+    export RUST_LOG="sqlx=error,info" && \
+    cargo test subscribe_fails_if_there_is_a_fatal_database_error | bunyan
