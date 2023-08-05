@@ -11,7 +11,7 @@ run:
     cargo run
 
 dev:
-    cargo watch -x check -x test -x run
+    export TEST_LOG=true && cargo watch -x check -x test -x run | bunyan
 
 build:
     cargo build
@@ -75,3 +75,6 @@ t8:
     export TEST_LOG=enabled && \
     export RUST_LOG="sqlx=error,info" && \
     cargo test subscribe_fails_if_there_is_a_fatal_database_error | bunyan
+
+t9:
+    export TEST_LOG=1 && export RUST_LOG="sqlx=error,info" && cargo t newsletters_are_delivered_to_confirmed_subscribers | bunyan

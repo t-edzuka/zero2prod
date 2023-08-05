@@ -1,6 +1,6 @@
 use validator::validate_email;
 
-#[derive(Debug, Clone)]
+#[derive(Clone, Debug)]
 pub struct SubscriberEmail(String);
 
 impl SubscriberEmail {
@@ -10,6 +10,13 @@ impl SubscriberEmail {
             return Err(format!("{} is not a valid email address.", s));
         }
         Ok(Self(s))
+    }
+}
+
+impl std::fmt::Display for SubscriberEmail {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        // We just forward to the Display implementation of // the wrapped String.
+        self.0.fmt(f)
     }
 }
 
