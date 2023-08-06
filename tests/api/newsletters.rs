@@ -128,3 +128,28 @@ async fn newsletters_returns_400_when_data_is_missing() {
         );
     }
 }
+
+#[tokio::test]
+async fn requests_missing_authorization_are_rejected() {
+    let app = spawn_app().await;
+    let news_request_body = serde_json::json!({
+        "title": "Newsletter title",
+        "content": {
+            "text": "Newsletter body",
+            "html": "<p>Newsletter body</p>"
+        }
+    });
+
+    let response_in_no_authentication_headers = reqwest::Client::new()
+        .post(&format!("{}/newsletters", &app.address))
+        .json(&news_request_body)
+        .send()
+        .await
+        .expect("Failed to execute request.");
+
+    let www_authenticate = &response_in_no_authentication_headers
+        .headers()
+        .get("WWW-Authenticate");
+    assert_eq!(401, response_in_no_authentication_headers.status().as_u16()); // 401 Unauthorized
+    assert_eq!(r#"Basic realm="publish""#, www_authenticate.unwrap())
+}

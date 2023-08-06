@@ -1,8 +1,13 @@
 use std::fmt::Formatter;
 
+use actix_web::body::BoxBody;
+use actix_web::http::header::{HeaderMap, HeaderValue};
+use actix_web::http::{header, StatusCode};
 use actix_web::web::Json;
 use actix_web::{web, HttpResponse, ResponseError};
 use anyhow::Context;
+use base64::Engine;
+use secrecy::Secret;
 use sqlx::PgPool;
 use thiserror;
 
@@ -24,6 +29,8 @@ pub struct Content {
 
 #[derive(thiserror::Error)]
 pub enum PublishError {
+    #[error("Authentication failed")]
+    AuthenticationError(#[source] anyhow::Error),
     #[error(transparent)]
     UnexpectedError(#[from] anyhow::Error),
 }
@@ -35,11 +42,23 @@ impl std::fmt::Debug for PublishError {
 }
 
 impl ResponseError for PublishError {
-    fn status_code(&self) -> actix_web::http::StatusCode {
+    fn error_response(&self) -> HttpResponse<BoxBody> {
         match self {
-            PublishError::UnexpectedError(_) => actix_web::http::StatusCode::INTERNAL_SERVER_ERROR,
+            PublishError::AuthenticationError(_) => {
+                let mut response = HttpResponse::new(StatusCode::UNAUTHORIZED);
+                let header_value = HeaderValue::from_str(r#"Basic realm="publish""#).unwrap();
+                response
+                    .headers_mut()
+                    .insert(header::WWW_AUTHENTICATE, header_value);
+                response
+            }
+            PublishError::UnexpectedError(_) => HttpResponse::InternalServerError().finish(),
         }
     }
+
+    // `status_code` is invoked by the default `error_response`
+    // implementation. We are providing a bespoke `error_response` implementation
+    // therefore there is no need to maintain a `status_code` implementation anymore.
 }
 
 #[tracing::instrument(name = "Publishing newsletter", skip(body, pool, email_client))]
@@ -47,7 +66,13 @@ pub async fn publish_newsletter(
     body: Json<BodyData>,
     pool: web::Data<PgPool>,
     email_client: web::Data<EmailClient>,
+    request: actix_web::HttpRequest,
 ) -> Result<HttpResponse, PublishError> {
+    let headers = request.headers();
+    // TODO: Authentication process is required.
+    let _credential = basic_authentication(headers).map_err(PublishError::AuthenticationError)?;
+    let _username = _credential.username;
+    let _password = _credential.password;
     let confirmed_subscribers = get_confirmed_subscribers(&pool).await?;
     for subscriber in confirmed_subscribers {
         match subscriber {
@@ -64,9 +89,9 @@ pub async fn publish_newsletter(
                         format!("Failed to send newsletter issue to {}", subscriber.email)
                     })?;
             }
-            Err(err) => {
+            Err(error) => {
                 tracing::warn!(
-                    error = %err,
+                    error.cause_chain = ?error,
                     "Failed to notify subscriber, skipping",
                 );
             }
@@ -101,4 +126,87 @@ async fn get_confirmed_subscribers(
         })
         .collect::<Vec<_>>();
     Ok(confirmed_subscribers)
+}
+
+struct Credentials {
+    username: String,
+    password: Secret<String>,
+}
+
+fn basic_authentication(headers: &HeaderMap) -> Result<Credentials, anyhow::Error> {
+    let authorization = headers
+        .get("Authorization")
+        .context("Missing \"Authorization\" header.")?
+        .to_str()
+        .context("Failed to parse authorization header")?;
+    let authorization = strip_prefix_case_insensitive(authorization, "Basic ")
+        .context("Invalid authorization header")?;
+    let decoded_bytes = base64::engine::general_purpose::STANDARD.decode(authorization)?;
+    let decoded_authorization = String::from_utf8(decoded_bytes)?;
+    let mut credentials = decoded_authorization.splitn(2, ':');
+    let username = credentials.next().ok_or_else(|| {
+        anyhow::anyhow!("username must be provide in Basic authentication headers.")
+    })?;
+    let password = credentials.next().ok_or_else(|| {
+        anyhow::anyhow!("password must be provided in basic authorization headers.")
+    })?;
+    Ok(Credentials {
+        username: username.to_owned(),
+        password: Secret::new(password.to_owned()),
+    })
+}
+
+#[test]
+fn basic_authentication_valid_case() {
+    use secrecy::ExposeSecret;
+    let mut headers_cases = vec![];
+    let mut headers = HeaderMap::new();
+    headers.insert(
+        "Authorization".parse().unwrap(),
+        "Basic QWxhZGRpbjpPcGVuU2VzYW1l".parse().unwrap(),
+    );
+    headers_cases.push(headers);
+    let mut headers = HeaderMap::new();
+    headers.insert(
+        "Authorization".parse().unwrap(),
+        " Basic QWxhZGRpbjpPcGVuU2VzYW1l".parse().unwrap(), // Leading space allowed in RFC 7230 section 3.2.4
+    );
+    headers_cases.push(headers);
+
+    for headers in headers_cases {
+        let credentials = basic_authentication(&headers).unwrap();
+        assert_eq!(credentials.username, "Aladdin");
+        assert_eq!(credentials.password.expose_secret(), "OpenSesame");
+    }
+}
+
+fn strip_prefix_case_insensitive<'a>(s: &'a str, prefix: &str) -> Option<&'a str> {
+    let s = s.trim_start();
+    if s.len() >= prefix.len() && s[..prefix.len()].eq_ignore_ascii_case(prefix) {
+        Some(&s[prefix.len()..])
+    } else {
+        None
+    }
+}
+
+#[test]
+fn basic_prefix_remove_case_insensitively() {
+    let s = "Basic QWxhZGRpbjpPcGVuU2VzYW1l";
+    assert_eq!(
+        strip_prefix_case_insensitive(s, "Basic "),
+        Some("QWxhZGRpbjpPcGVuU2VzYW1l")
+    );
+    assert_eq!(
+        strip_prefix_case_insensitive(s, "BASIC "),
+        Some("QWxhZGRpbjpPcGVuU2VzYW1l")
+    );
+    assert_eq!(
+        strip_prefix_case_insensitive(s, "basic "),
+        Some("QWxhZGRpbjpPcGVuU2VzYW1l")
+    );
+    assert_eq!(
+        strip_prefix_case_insensitive(s, "baSic "),
+        Some("QWxhZGRpbjpPcGVuU2VzYW1l")
+    );
+    assert_eq!(strip_prefix_case_insensitive(s, "Bearer "), None);
 }
