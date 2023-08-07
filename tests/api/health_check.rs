@@ -1,15 +1,10 @@
-use crate::helpers::{spawn_app, TestApp};
+use crate::helpers::spawn_app;
 
 #[tokio::test]
 async fn test_health_check_work() {
-    let TestApp {
-        port: _,
-        address,
-        db_pool: _,
-        email_server: _,
-    } = spawn_app().await;
+    let app = spawn_app().await;
     let client = reqwest::Client::new();
-    let endpoint = format!("{}/health_check", address);
+    let endpoint = format!("{}/health_check", app.address);
     let response = client
         .get(endpoint)
         .send()

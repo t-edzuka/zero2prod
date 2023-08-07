@@ -6,14 +6,17 @@ use actix_web::http::{header, StatusCode};
 use actix_web::web::Json;
 use actix_web::{web, HttpResponse, ResponseError};
 use anyhow::Context;
+use argon2::{Argon2, PasswordHash, PasswordVerifier};
 use base64::Engine;
-use secrecy::Secret;
+use secrecy::{ExposeSecret, Secret};
 use sqlx::PgPool;
 use thiserror;
+use uuid::Uuid;
 
 use crate::domain::SubscriberEmail;
 use crate::email_client::EmailClient;
 use crate::routes::error_chain_fmt;
+use crate::telemetry::spawn_blocking_with_tracing;
 
 #[derive(serde::Deserialize)]
 pub struct BodyData {
@@ -30,7 +33,7 @@ pub struct Content {
 #[derive(thiserror::Error)]
 pub enum PublishError {
     #[error("Authentication failed")]
-    AuthenticationError(#[source] anyhow::Error),
+    AuthError(#[source] anyhow::Error),
     #[error(transparent)]
     UnexpectedError(#[from] anyhow::Error),
 }
@@ -44,7 +47,7 @@ impl std::fmt::Debug for PublishError {
 impl ResponseError for PublishError {
     fn error_response(&self) -> HttpResponse<BoxBody> {
         match self {
-            PublishError::AuthenticationError(_) => {
+            PublishError::AuthError(_) => {
                 let mut response = HttpResponse::new(StatusCode::UNAUTHORIZED);
                 let header_value = HeaderValue::from_str(r#"Basic realm="publish""#).unwrap();
                 response
@@ -61,19 +64,28 @@ impl ResponseError for PublishError {
     // therefore there is no need to maintain a `status_code` implementation anymore.
 }
 
-#[tracing::instrument(name = "Publishing newsletter", skip(body, pool, email_client))]
+#[tracing::instrument(
+name = "Publishing newsletter",
+skip(body, pool, email_client),
+fields(username = tracing::field::Empty, user_id = tracing::field::Empty)
+)]
 pub async fn publish_newsletter(
     body: Json<BodyData>,
     pool: web::Data<PgPool>,
     email_client: web::Data<EmailClient>,
     request: actix_web::HttpRequest,
 ) -> Result<HttpResponse, PublishError> {
+    // 1. Authenticate the request
     let headers = request.headers();
-    // TODO: Authentication process is required.
-    let _credential = basic_authentication(headers).map_err(PublishError::AuthenticationError)?;
-    let _username = _credential.username;
-    let _password = _credential.password;
+    let credentials = basic_authentication(headers).map_err(PublishError::AuthError)?;
+    tracing::Span::current().record("username", &tracing::field::display(&credentials.username));
+    let user_id = validate_credentials(credentials, &pool).await?;
+    tracing::Span::current().record("user_id", &tracing::field::display(&user_id));
+
+    // 2. Get all confirmed subscribers
     let confirmed_subscribers = get_confirmed_subscribers(&pool).await?;
+
+    // 3. Send newsletter to all confirmed subscribers
     for subscriber in confirmed_subscribers {
         match subscriber {
             Ok(subscriber) => {
@@ -156,6 +168,90 @@ fn basic_authentication(headers: &HeaderMap) -> Result<Credentials, anyhow::Erro
     })
 }
 
+fn strip_prefix_case_insensitive<'a>(s: &'a str, prefix: &str) -> Option<&'a str> {
+    let s = s.trim_start();
+    if s.len() >= prefix.len() && s[..prefix.len()].eq_ignore_ascii_case(prefix) {
+        Some(&s[prefix.len()..])
+    } else {
+        None
+    }
+}
+
+#[tracing::instrument(name = "Validate credentials", skip(credentials, pool))]
+async fn validate_credentials(
+    credentials: Credentials,
+    pool: &PgPool,
+) -> Result<Uuid, PublishError> {
+    let mut user_id = None;
+    let mut expected_password_hash = Secret::new(
+        "$argon2id$v=19$m=15000,t=2,p=1$\
+        gZiV/M1gPc22ElAH/Jh1Hw$\
+        CWOrkoo7oJBQ/iyh7uJ0LO2aLEfrHwTWllSAxT0zRno"
+            .to_string(),
+    );
+
+    // Fetch user information from the database
+    if let Some((stored_user_id, stored_hash_password)) = get_stored_credentials(&credentials, pool)
+        .await
+        .map_err(PublishError::UnexpectedError)?
+    {
+        user_id = Some(stored_user_id);
+        expected_password_hash = stored_hash_password;
+    }
+
+    spawn_blocking_with_tracing(move || {
+        verify_password_hash(expected_password_hash, credentials.password)
+    })
+    .await
+    .context("Failed to spawn blocking task.") // Nested Error => Result<Result<(), PublishError>, Error>
+    .map_err(PublishError::UnexpectedError)??;
+
+    user_id.ok_or_else(|| PublishError::AuthError(anyhow::anyhow!("Invalid credentials.")))
+}
+
+#[tracing::instrument(
+    name = "Verify password hash",
+    skip(expected_password_hash, password_candidate)
+)]
+fn verify_password_hash(
+    expected_password_hash: Secret<String>,
+    password_candidate: Secret<String>,
+) -> Result<(), PublishError> {
+    // Calculate the password hash by using the password_hash stored in the database, following PHC string format.
+    let expected_password_hash = PasswordHash::new(expected_password_hash.expose_secret())
+        .context("Failed to build password hash from database record.")
+        .map_err(PublishError::UnexpectedError)?;
+    Argon2::default()
+        .verify_password(
+            password_candidate.expose_secret().as_bytes(),
+            &expected_password_hash,
+        )
+        .context("Failed to verify password hash.")
+        .map_err(PublishError::AuthError)
+}
+
+#[tracing::instrument(name = "Get stored credentials", skip(credentials, pool))]
+async fn get_stored_credentials(
+    credentials: &Credentials,
+    pool: &PgPool,
+) -> Result<Option<(Uuid, Secret<String>)>, anyhow::Error> {
+    let q = sqlx::query!(
+        r#"
+        SELECT user_id, password_hash
+        FROM users
+        WHERE username = $1
+        "#,
+        credentials.username,
+    );
+
+    let row = q
+        .fetch_optional(pool)
+        .await
+        .context("Failed to perform query to validate auth credentials.")?
+        .map(|row| (row.user_id, Secret::new(row.password_hash)));
+    Ok(row)
+}
+
 #[test]
 fn basic_authentication_valid_case() {
     use secrecy::ExposeSecret;
@@ -177,15 +273,6 @@ fn basic_authentication_valid_case() {
         let credentials = basic_authentication(&headers).unwrap();
         assert_eq!(credentials.username, "Aladdin");
         assert_eq!(credentials.password.expose_secret(), "OpenSesame");
-    }
-}
-
-fn strip_prefix_case_insensitive<'a>(s: &'a str, prefix: &str) -> Option<&'a str> {
-    let s = s.trim_start();
-    if s.len() >= prefix.len() && s[..prefix.len()].eq_ignore_ascii_case(prefix) {
-        Some(&s[prefix.len()..])
-    } else {
-        None
     }
 }
 

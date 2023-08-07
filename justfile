@@ -4,7 +4,7 @@ alias t := test
 alias f := format
 alias l := lint
 alias d := dev
-alias ct := create_ms
+alias ma := migrate_add
 alias b := build
 
 run:
@@ -43,6 +43,10 @@ psql:
 
 list-db:
     docker exec -it psql-dev psql {{DATABASE_URL}} -c "\l"
+
+show-tables:
+    docker exec -it psql-dev psql {{DATABASE_URL}} -c "\dt"
+
 clear-db:
     docker stop psql-dev
     docker rm psql-dev
@@ -51,7 +55,7 @@ reinit-db:clear-db init_db
 
 
 # Create a new migration script
-create_ms script_name: init_db
+migrate_add script_name: init_db
     export DATABASE_URL={{DATABASE_URL}}
     sqlx migrate add {{ script_name }}
 

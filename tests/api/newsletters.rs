@@ -1,3 +1,4 @@
+use uuid::Uuid;
 use wiremock::matchers::{any, method, path};
 use wiremock::{Mock, ResponseTemplate};
 
@@ -152,4 +153,62 @@ async fn requests_missing_authorization_are_rejected() {
         .get("WWW-Authenticate");
     assert_eq!(401, response_in_no_authentication_headers.status().as_u16()); // 401 Unauthorized
     assert_eq!(r#"Basic realm="publish""#, www_authenticate.unwrap())
+}
+
+#[tokio::test]
+async fn non_existing_user_is_rejected() {
+    let app = spawn_app().await;
+    let news_request_body = serde_json::json!({
+        "title": "Newsletter title",
+        "content": {
+            "text": "Newsletter body",
+            "html": "<p>Newsletter body</p>"
+        }
+    });
+
+    // Generate random username and password to simulate a non-existing user.
+    let username = Uuid::new_v4().to_string();
+    let password = Uuid::new_v4().to_string();
+
+    let response = reqwest::Client::new()
+        .post(&format!("{}/newsletters", &app.address))
+        .basic_auth(&username, Some(&password))
+        .json(&news_request_body)
+        .send()
+        .await
+        .expect("Failed to execute request.");
+
+    assert_eq!(401, response.status().as_u16());
+    assert_eq!(
+        r#"Basic realm="publish""#,
+        response.headers().get("WWW-Authenticate").unwrap()
+    )
+}
+
+#[tokio::test]
+async fn invalid_password_with_existing_user_is_rejected() {
+    let app = spawn_app().await;
+    let username = &app.test_user.username;
+    // Generate random password to simulate an invalid password.
+    let password = Uuid::new_v4().to_string();
+    let news_request_body = serde_json::json!({
+        "title": "Newsletter title",
+        "content": {
+            "text": "Newsletter body",
+            "html": "<p>Newsletter body</p>"
+        }
+    });
+
+    let response = reqwest::Client::new()
+        .post(&format!("{}/newsletters", &app.address))
+        .basic_auth(username, Some(&password))
+        .json(&news_request_body)
+        .send()
+        .await
+        .expect("Failed to execute request.");
+    assert_eq!(401, response.status().as_u16());
+    assert_eq!(
+        r#"Basic realm="publish""#,
+        response.headers().get("WWW-Authenticate").unwrap()
+    )
 }
