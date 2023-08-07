@@ -30,7 +30,7 @@ lint:
 # cargo install bynyan
 # "bunyan" prettifies the outputted logs
 test:
-    export TEST_LOG=true && export RUST_LOG="debug,sqlx=error,info" && cargo test | bunyan
+    export TEST_LOG=true && export RUST_LOG="sqlx=error,info" && cargo test | bunyan
 
 build_test:
     cargo build --tests

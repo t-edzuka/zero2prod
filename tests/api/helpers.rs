@@ -115,6 +115,28 @@ impl TestUser {
     }
 }
 
+impl TestApp {
+    pub async fn post_login<Body: serde::Serialize>(&self, body: &Body) -> reqwest::Response {
+        reqwest::Client::builder()
+            .redirect(reqwest::redirect::Policy::none())
+            .build()
+            .expect("Failed to build a login client agent.")
+            .post(&format!("{}/login", &self.address))
+            .form(body)
+            .send()
+            .await
+            .expect("Failed to send request to `/login` endpoint.")
+    }
+}
+
+pub fn assert_is_redirect_to(response: &reqwest::Response, redirect_endpoint: &str) {
+    assert_eq!(303, response.status().as_u16());
+    assert_eq!(
+        response.headers().get("Location").unwrap(),
+        redirect_endpoint
+    )
+}
+
 pub async fn configure_database(config: &DatabaseSettings) -> PgPool {
     // Create database
     let mut connection = config
