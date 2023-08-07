@@ -28,11 +28,13 @@ pub struct TestApp {
     pub db_pool: PgPool,
     pub email_server: MockServer,
     pub test_user: TestUser,
+    pub api_client: reqwest::Client,
 }
 
+// A set of API client implementations for testing.
 impl TestApp {
     pub async fn post_subscriptions(&self, body: String) -> reqwest::Response {
-        reqwest::Client::new()
+        self.api_client
             .post(&format!("{}/subscriptions", self.address))
             .header("Content-Type", "application/x-www-form-urlencoded")
             .body(body)
@@ -43,7 +45,7 @@ impl TestApp {
 
     pub async fn post_newsletters(&self, body: serde_json::Value) -> reqwest::Response {
         let (username, password) = (&self.test_user.username, &self.test_user.password);
-        reqwest::Client::new()
+        self.api_client
             .post(&format!("{}/newsletters", &self.address))
             .basic_auth(username, Some(password))
             .json(&body)
@@ -51,6 +53,33 @@ impl TestApp {
             .await
             .expect("Failed to execute request.")
     }
+
+    pub async fn post_login<Body: serde::Serialize>(&self, body: &Body) -> reqwest::Response {
+        self.api_client
+            .post(&format!("{}/login", &self.address))
+            .form(body)
+            .send()
+            .await
+            .expect("Failed to send request to `/login` endpoint.")
+    }
+
+    pub async fn get_login_html(&self) -> String {
+        let response = self
+            .api_client
+            .get(&format!("{}/login", &self.address))
+            .send()
+            .await
+            .expect("Failed to GET `/login` endpoint.");
+        response.text().await.expect("Failed get the login page.")
+    }
+}
+
+pub fn assert_is_redirect_to(response: &reqwest::Response, redirect_endpoint: &str) {
+    assert_eq!(303, response.status().as_u16());
+    assert_eq!(
+        response.headers().get("Location").unwrap(),
+        redirect_endpoint
+    )
 }
 
 pub struct ConfirmationLinks {
@@ -115,28 +144,6 @@ impl TestUser {
     }
 }
 
-impl TestApp {
-    pub async fn post_login<Body: serde::Serialize>(&self, body: &Body) -> reqwest::Response {
-        reqwest::Client::builder()
-            .redirect(reqwest::redirect::Policy::none())
-            .build()
-            .expect("Failed to build a login client agent.")
-            .post(&format!("{}/login", &self.address))
-            .form(body)
-            .send()
-            .await
-            .expect("Failed to send request to `/login` endpoint.")
-    }
-}
-
-pub fn assert_is_redirect_to(response: &reqwest::Response, redirect_endpoint: &str) {
-    assert_eq!(303, response.status().as_u16());
-    assert_eq!(
-        response.headers().get("Location").unwrap(),
-        redirect_endpoint
-    )
-}
-
 pub async fn configure_database(config: &DatabaseSettings) -> PgPool {
     // Create database
     let mut connection = config
@@ -182,6 +189,11 @@ pub async fn spawn_app() -> TestApp {
 
     let addr = format!("http://127.0.0.1:{}", port); // Note: Cause reqwest::Error if you forget "http://" prefix
     let db_pool = configure_database(&configuration.database).await;
+    let api_client = reqwest::Client::builder()
+        .redirect(reqwest::redirect::Policy::none())
+        .cookie_store(true)
+        .build()
+        .expect("Failed to build a API client for testing.");
     tokio::spawn(app.run_until_stopped());
     let test_app = TestApp {
         port,
@@ -189,6 +201,7 @@ pub async fn spawn_app() -> TestApp {
         db_pool,
         email_server,
         test_user: TestUser::generate(),
+        api_client,
     };
 
     test_app.test_user.store(&test_app.db_pool).await;

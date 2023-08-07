@@ -16,4 +16,7 @@ async fn an_error_flash_message_is_set_on_failure() {
         .expect("Cookie name: `_flash` is not set");
 
     assert_eq!(flash_cookie.value(), "Authentication failed");
+    // Act - Part 2
+    let html_page = app.get_login_html().await;
+    assert!(html_page.contains(r#"<p><i>Authentication failed</i></p>"#));
 }
