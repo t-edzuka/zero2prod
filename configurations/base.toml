@@ -1,3 +1,5 @@
+redis_uri = "redis://127.0.0.1:6379"
+
 [application]
 port = 8078
 hmac_secret = "long-and-very-secret-random-key-needed-to-veryfy-message-integrity"
@@ -14,3 +16,5 @@ base_url = "localhost"
 sender_email = "test@gmail.com"
 authorization_token = "dev-secret-token"
 timeout_milliseconds = 5000
+
+
