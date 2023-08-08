@@ -12,4 +12,3 @@ rustflags = ["-C", "link-arg=-fuse-ld=/usr/local/bin/zld"]
 
 [target.aarch64-apple-darwin]
 rustflags = ["-C", "link-arg=-fuse-ld=/usr/local/bin/zld"]
-

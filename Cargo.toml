@@ -1,7 +1,7 @@
 [package]
+edition = "2021"
 name = "zero2prod"
 version = "0.1.0"
-edition = "2021"
 
 [lib]
 path = "src/lib.rs"
@@ -11,50 +11,62 @@ name = "zero2prod"
 path = "src/main.rs"
 
 [dependencies]
+actix-session = { version = "0.7", features = ["redis-rs-tls-session"] }
 actix-web = "4.3.1"
-tracing-actix-web = "0.7.6"
-tokio = { version = "1.29.1", features = ["macros", "rt-multi-thread"] }
-serde = { version = "1.0.183", features = ["derive"] }
-config = "0.13.3"
-uuid = { version = "1.4.1", features = ["v4", "fast-rng", "macro-diagnostics"] }
+actix-web-flash-messages = { version = "0.4.2", features = ["cookies"] }
+anyhow = "1.0.72"
+argon2 = { version = "0.5.1", features = ["std"] }
+base64 = "0.21.2"
 chrono = { version = "0.4", default-features = false, features = ["clock"] }
+config = "0.13.3"
+hex = "0.4.3"
+hmac = { version = "0.12.1", features = ["std"] }
+htmlescape = "0.3.1"
 log = "0.4"
+rand = { version = "0.8.5", features = ["std_rng"] }
+reqwest = { version = "0.11.18", default-features = false, features = [
+  "json",
+  "rustls-tls",
+  "cookies",
+] }
+secrecy = { version = "0.8.0", features = ["serde"] }
+serde = { version = "1.0.183", features = ["derive"] }
+serde-aux = "4"
+serde_json = "1"
+sha2 = "0.10.7"
+thiserror = "1.0.44"
+tokio = { version = "1.29.1", features = ["macros", "rt-multi-thread"] }
 tracing = "0.1"
-tracing-subscriber = { version = "0.3", features = ["registry", "env-filter"] }
+tracing-actix-web = "0.7.6"
 tracing-bunyan-formatter = "0.3.8"
 tracing-log = "0.1.3"
-secrecy = { version = "0.8.0", features = ["serde"] }
-serde-aux = "4"
+tracing-subscriber = { version = "0.3", features = ["registry", "env-filter"] }
 unicode-segmentation = "1.10.1"
-validator = "0.16"
-reqwest = { version = "0.11.18", default-features = false, features = ["json", "rustls-tls", "cookies"] }
-rand = { version = "0.8.5", features = ["std_rng"] }
-thiserror = "1.0.44"
-anyhow = "1.0.72"
-base64 = "0.21.2"
-argon2 = { version = "0.5.1", features = ["std"] }
 urlencoding = "2.1.3"
-htmlescape = "0.3.1"
-hmac = { version = "0.12.1", features = ["std"] }
-sha2 = "0.10.7"
-hex = "0.4.3"
-actix-web-flash-messages = { version = "0.4.2", features = ["cookies"] }
-actix-session = { version = "0.7", features = ["redis-rs-tls-session"] }
+uuid = { version = "1.4.1", features = ["v4", "serde"] }
+validator = "0.16"
 
 [dependencies.sqlx]
-version = "0.7.1"
 default-features = false
-features = ["macros", "postgres", "uuid", "chrono", "migrate", "runtime-tokio-rustls"]
+features = [
+  "macros",
+  "postgres",
+  "uuid",
+  "chrono",
+  "migrate",
+  "runtime-tokio-rustls",
+]
+version = "0.7.1"
 
 
 [dev-dependencies]
-once_cell = "1.18.0"
 claims = { version = "0.7" }
+fake = "2.6.1"
+linkify = "0.10.0"
+once_cell = "1.18.0"
 quickcheck = "1.0.3"
 quickcheck_macros = "1.0.0"
-fake = "2.6.1"
 rand = "0.8.5"
+serde_json = "1"
 tokio = { version = "1.29.1", features = ["macros", "rt"] }
 wiremock = "0.5.19"
-serde_json = "1"
-linkify = "0.10.0"

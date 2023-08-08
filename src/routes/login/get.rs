@@ -4,10 +4,11 @@ use actix_web_flash_messages::{IncomingFlashMessages, Level};
 use std::fmt::Write;
 
 ///  # Used as login page or redirect page, when the login failed (controlled by cookie `_flash` key).  
-/// When the user first vist login page(GET `/login`), just return login page
-/// The user will be redirected to this page via POST `/login` with authentication failed, return login page with the error message injected.
-/// by `Set-Cookie: _flash={{an error message}}`.  
-/// After the error message is injected to html page, **the cookie value is removed** in the response.
+/// When the user first vist login page(GET `/login`), just return login page.    
+/// The user with authentication failed will be redirected to this page via POST `/login`, return login page with the error message injected.  
+/// Error message is sent by `FlashMessageFrameWork`.    
+/// After the error message is injected to html page, **the cookie value is removed** in the new login page response.  
+///
 pub async fn login_form(flash_messages: IncomingFlashMessages) -> HttpResponse {
     let mut error_html = String::new();
     for m in flash_messages.iter().filter(|m| m.level() == Level::Error) {

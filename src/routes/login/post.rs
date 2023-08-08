@@ -10,6 +10,7 @@ use std::fmt::{Debug, Formatter};
 
 use crate::authentication::{validate_credentials, AuthError, Credentials};
 use crate::routes::error_chain_fmt;
+use crate::session_state::TypedSession;
 
 #[derive(Deserialize)]
 pub struct FormData {
@@ -37,10 +38,11 @@ impl ResponseError for LoginError {
     }
 }
 
-#[tracing::instrument(skip(form, pool), fields(username = tracing::field::Empty, user_id = tracing::field::Empty))]
+#[tracing::instrument(skip(form, pool, session), fields(username = tracing::field::Empty, user_id = tracing::field::Empty))]
 pub async fn login(
     form: web::Form<FormData>,
     pool: web::Data<PgPool>,
+    session: TypedSession,
 ) -> Result<HttpResponse, InternalError<LoginError>> {
     let credentials = Credentials {
         username: form.0.username,
@@ -50,8 +52,18 @@ pub async fn login(
     match validate_credentials(credentials, &pool).await {
         Ok(user_id) => {
             tracing::Span::current().record("user_id", &tracing::field::display(&user_id));
+            // セッション固定攻撃（Session Fixation Attack）対策.
+            // 攻撃者が事前にセッショントークンをユーザーのブラウザに固定（または「植え付け」）を行ったとしても
+            // ログインに成功した時点でSessionを更新してしまえば良い.
+            session.renew();
+            // The values you pass in, in this case `&user_id: Uuid`,
+            // MUST be serializable - actix-session converts them into JSON behind the scenes.
+            // So uuid crate require serde feature for serialization.
+            session
+                .insert_user_id(user_id)
+                .map_err(|e| login_redirect(LoginError::UnexpectedError(e.into())))?;
             Ok(HttpResponse::SeeOther()
-                .insert_header((LOCATION, "/"))
+                .insert_header((LOCATION, "/admin/dashboard"))
                 .finish())
         }
         Err(e) => {
@@ -68,4 +80,14 @@ pub async fn login(
             Err(InternalError::from_response(e, response))
         }
     }
+}
+
+// Redirect to login page with an error message.
+fn login_redirect(e: LoginError) -> InternalError<LoginError> {
+    FlashMessage::error(e.to_string()).send();
+
+    let response = HttpResponse::SeeOther()
+        .insert_header((LOCATION, "/login"))
+        .finish();
+    InternalError::from_response(e, response)
 }

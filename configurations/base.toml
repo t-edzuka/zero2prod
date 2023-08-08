@@ -1,20 +1,18 @@
 redis_uri = "redis://127.0.0.1:6379"
 
 [application]
-port = 8078
 hmac_secret = "long-and-very-secret-random-key-needed-to-veryfy-message-integrity"
+port = 8078
 
 [database]
+database_name = "newsletter"
 host = "localhost"
+password = "password"
 port = 5432
 username = "postgres"
-password = "password"
-database_name = "newsletter"
 
 [email_client]
+authorization_token = "dev-secret-token"
 base_url = "localhost"
 sender_email = "test@gmail.com"
-authorization_token = "dev-secret-token"
 timeout_milliseconds = 5000
-
-

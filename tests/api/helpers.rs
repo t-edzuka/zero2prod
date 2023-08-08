@@ -72,6 +72,22 @@ impl TestApp {
             .expect("Failed to GET `/login` endpoint.");
         response.text().await.expect("Failed get the login page.")
     }
+
+    pub async fn get_admin_dashboard(&self) -> reqwest::Response {
+        self.api_client
+            .get(&format!("{}/admin/dashboard", &self.address))
+            .send()
+            .await
+            .expect("Failed to GET `/admin/dashboard` endpoint.")
+    }
+
+    pub async fn get_admin_dashboard_html(&self) -> String {
+        self.get_admin_dashboard()
+            .await
+            .text()
+            .await
+            .expect("Failed get the dashboard page.")
+    }
 }
 
 pub fn assert_is_redirect_to(response: &reqwest::Response, redirect_endpoint: &str) {
@@ -190,7 +206,7 @@ pub async fn spawn_app() -> TestApp {
     let addr = format!("http://127.0.0.1:{}", port); // Note: Cause reqwest::Error if you forget "http://" prefix
     let db_pool = configure_database(&configuration.database).await;
     let api_client = reqwest::Client::builder()
-        .redirect(reqwest::redirect::Policy::none())
+        .redirect(reqwest::redirect::Policy::none()) // Turn off the default redirect behaviour, which is specific for reqwest library.
         .cookie_store(true)
         .build()
         .expect("Failed to build a API client for testing.");
