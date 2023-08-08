@@ -1,4 +1,5 @@
 use crate::session_state::TypedSession;
+use crate::utils;
 use actix_web::http::header::ContentType;
 use actix_web::{web, HttpResponse};
 use anyhow::Context;
@@ -6,20 +7,13 @@ use reqwest::header::LOCATION;
 use sqlx::PgPool;
 use uuid::Uuid;
 
-fn e500<T>(e: T) -> actix_web::Error
-where
-    T: std::fmt::Debug + std::fmt::Display + 'static,
-{
-    actix_web::error::ErrorInternalServerError(e)
-}
-
 #[tracing::instrument(name = "Get admin dashboard", skip(session, pool))]
 pub async fn admin_dashboard(
     session: TypedSession,
     pool: web::Data<PgPool>,
 ) -> Result<HttpResponse, actix_web::error::Error> {
-    let username = if let Some(user_id) = session.get_user_id().map_err(e500)? {
-        get_username(user_id, &pool).await.map_err(e500)?
+    let username = if let Some(user_id) = session.get_user_id().map_err(utils::e500)? {
+        get_username(user_id, &pool).await.map_err(utils::e500)?
     } else {
         return Ok(HttpResponse::SeeOther()
             .insert_header((LOCATION, "/login"))
@@ -33,12 +27,15 @@ pub async fn admin_dashboard(
 <title>Admin dashboard</title>
 </head>
 <body>
-    <p>Welcome {}</p>
+    <p>Welcome {username}</p>
+    <p>Available actions:</p>
+    <ol>
+        <li><a href="/admin/password">Change password</a></li>
+    </ol>
 </body>
 </html>
 
-"#,
-        username
+"#
     );
     Ok(HttpResponse::Ok()
         .content_type(ContentType::html())
@@ -46,7 +43,7 @@ pub async fn admin_dashboard(
 }
 
 #[tracing::instrument(name = "Fetch a username from database by user_id" skip(pool))]
-async fn get_username(user_id: Uuid, pool: &PgPool) -> Result<String, anyhow::Error> {
+pub async fn get_username(user_id: Uuid, pool: &PgPool) -> Result<String, anyhow::Error> {
     let q = sqlx::query!(
         r#"
     SELECT username FROM users WHERE user_id=$1

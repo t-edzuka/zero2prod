@@ -88,6 +88,34 @@ impl TestApp {
             .await
             .expect("Failed get the dashboard page.")
     }
+
+    pub async fn get_change_password(&self) -> reqwest::Response {
+        self.api_client
+            .get(format!("{}/admin/password", &self.address))
+            .send()
+            .await
+            .expect("Failed to fetch GET /admin/password response")
+    }
+
+    pub async fn post_change_password<Body: serde::Serialize>(
+        &self,
+        body: &Body,
+    ) -> reqwest::Response {
+        self.api_client
+            .post(format!("{}/admin/password", &self.address))
+            .form(body)
+            .send()
+            .await
+            .expect("Failed to fetch POST /admin/password response")
+    }
+
+    pub async fn get_change_password_html(&self) -> String {
+        self.get_change_password()
+            .await
+            .text()
+            .await
+            .expect("Failed to fetch the change password html page")
+    }
 }
 
 pub fn assert_is_redirect_to(response: &reqwest::Response, redirect_endpoint: &str) {
@@ -138,6 +166,7 @@ impl TestUser {
             user_id: Uuid::new_v4(),
             username: Uuid::new_v4().to_string(),
             password: Uuid::new_v4().to_string(),
+            // password: "everything-has-to-start-somewhere".to_string(), // For just seeding.
         }
     }
     pub async fn store(&self, pool: &PgPool) {
@@ -156,6 +185,7 @@ impl TestUser {
             self.username,
             password_hash
         );
+
         q.execute(pool).await.expect("Failed to insert test user");
     }
 }
