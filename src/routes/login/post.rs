@@ -1,13 +1,12 @@
-use std::fmt::{Debug, Formatter};
-
-use actix_web::cookie::Cookie;
 use actix_web::error::InternalError;
 use actix_web::http::header::LOCATION;
 use actix_web::http::StatusCode;
 use actix_web::{web, HttpResponse, ResponseError};
+use actix_web_flash_messages::FlashMessage;
 use secrecy::Secret;
 use serde::Deserialize;
 use sqlx::PgPool;
+use std::fmt::{Debug, Formatter};
 
 use crate::authentication::{validate_credentials, AuthError, Credentials};
 use crate::routes::error_chain_fmt;
@@ -60,10 +59,11 @@ pub async fn login(
                 AuthError::InvalidCredentials(e) => LoginError::AuthError(e),
                 AuthError::UnexpectedError(e) => LoginError::UnexpectedError(e),
             };
+            // Error message sent by setting FlashMessageFramework
+            FlashMessage::error(e.to_string()).send();
 
             let response = HttpResponse::SeeOther()
                 .insert_header((LOCATION, "/login"))
-                .cookie(Cookie::new("_flash", e.to_string()))
                 .finish();
             Err(InternalError::from_response(e, response))
         }
