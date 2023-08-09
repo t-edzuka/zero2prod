@@ -116,6 +116,14 @@ impl TestApp {
             .await
             .expect("Failed to fetch the change password html page")
     }
+
+    pub async fn post_logout(&self) -> reqwest::Response {
+        self.api_client
+            .post(format!("{}/admin/logout", &self.address))
+            .send()
+            .await
+            .expect("Failed to fetch POST /logout response")
+    }
 }
 
 pub fn assert_is_redirect_to(response: &reqwest::Response, redirect_endpoint: &str) {

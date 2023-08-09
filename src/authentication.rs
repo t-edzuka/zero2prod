@@ -1,8 +1,10 @@
 use crate::telemetry::spawn_blocking_with_tracing;
 use anyhow::Context;
+
 use argon2::{Argon2, PasswordHash, PasswordVerifier};
 use secrecy::{ExposeSecret, Secret};
 use sqlx::PgPool;
+
 use uuid::Uuid;
 
 #[derive(thiserror::Error, Debug)]
@@ -13,6 +15,7 @@ pub enum AuthError {
     UnexpectedError(#[from] anyhow::Error),
 }
 
+// This user input maps this struct, which is commonly called DTO: Data Transfer Object.
 pub struct Credentials {
     pub username: String,
     pub password: Secret<String>,
@@ -23,6 +26,7 @@ pub async fn validate_credentials(
     credentials: Credentials,
     pool: &PgPool,
 ) -> Result<Uuid, AuthError> {
+    // These two lines are for forcing calculating hash in blocking task.
     let mut user_id = None;
     let mut expected_password_hash = Secret::new(
         "$argon2id$v=19$m=15000,t=2,p=1$\
@@ -67,7 +71,9 @@ fn verify_password_hash(
             &expected_password_hash,
         )
         .context("Failed to verify password hash.")
-        .map_err(AuthError::InvalidCredentials)
+        .map_err(AuthError::InvalidCredentials)?;
+
+    Ok(())
 }
 
 #[tracing::instrument(name = "Get stored credentials", skip(credentials, pool))]
