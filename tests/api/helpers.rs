@@ -43,15 +43,28 @@ impl TestApp {
             .expect("Failed to execute request.")
     }
 
-    pub async fn post_newsletters(&self, body: serde_json::Value) -> reqwest::Response {
-        let (username, password) = (&self.test_user.username, &self.test_user.password);
+    pub async fn post_newsletters<Body: serde::Serialize>(&self, body: &Body) -> reqwest::Response {
         self.api_client
-            .post(&format!("{}/newsletters", &self.address))
-            .basic_auth(username, Some(password))
-            .json(&body)
+            .post(&format!("{}/admin/newsletters", &self.address))
+            .form(body)
             .send()
             .await
             .expect("Failed to execute request.")
+    }
+
+    pub async fn get_publish_newsletter(&self) -> reqwest::Response {
+        self.api_client
+            .get(format!("{}/admin/newsletters", &self.address))
+            .send()
+            .await
+            .expect("Failed to fetch GET /newsletters/publish response")
+    }
+
+    #[allow(unused)]
+    pub async fn get_publish_newsletter_html(&self) -> String {
+        self.get_publish_newsletter().await.text().await.expect(
+            "Failed to fetch GET /newsletters/publish response body, expected body is a HTML text.",
+        )
     }
 
     pub async fn post_login<Body: serde::Serialize>(&self, body: &Body) -> reqwest::Response {
@@ -123,6 +136,16 @@ impl TestApp {
             .send()
             .await
             .expect("Failed to fetch POST /logout response")
+    }
+
+    pub async fn login(&self) {
+        let body = serde_json::json!({
+            "username": self.test_user.username,
+            "password": self.test_user.password,
+        });
+
+        let response = self.post_login(&body).await;
+        assert_is_redirect_to(&response, "/admin/dashboard");
     }
 }
 
@@ -258,6 +281,7 @@ pub async fn spawn_app() -> TestApp {
         api_client,
     };
 
+    // Create a test user
     test_app.test_user.store(&test_app.db_pool).await;
     test_app
 }
