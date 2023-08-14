@@ -31,7 +31,7 @@ pub async fn admin_dashboard(
     <p>Available actions:</p>
     <ol>
         <li><a href="/admin/password">Change password</a></li>
-        <li><a href="/admin/newsletters">Post a new letter</a></li>
+        <li><a href="/admin/newsletters">Post a newsletter</a></li>
     </ol>
 </body>
 </html>
