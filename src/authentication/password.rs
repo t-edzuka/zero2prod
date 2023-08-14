@@ -1,10 +1,11 @@
 use crate::telemetry::spawn_blocking_with_tracing;
 use anyhow::Context;
 
-use argon2::{Argon2, PasswordHash, PasswordVerifier};
+use argon2::{Algorithm, Argon2, Params, PasswordHash, PasswordHasher, PasswordVerifier, Version};
 use secrecy::{ExposeSecret, Secret};
 use sqlx::PgPool;
 
+use argon2::password_hash::SaltString;
 use uuid::Uuid;
 
 #[derive(thiserror::Error, Debug)]
@@ -77,7 +78,7 @@ fn verify_password_hash(
 }
 
 #[tracing::instrument(name = "Get stored credentials", skip(credentials, pool))]
-async fn get_stored_credentials(
+pub async fn get_stored_credentials(
     credentials: &Credentials,
     pool: &PgPool,
 ) -> Result<Option<(Uuid, Secret<String>)>, anyhow::Error> {
@@ -96,4 +97,80 @@ async fn get_stored_credentials(
         .context("Failed to perform query to validate auth credentials.")?
         .map(|row| (row.user_id, Secret::new(row.password_hash)));
     Ok(row)
+}
+
+#[tracing::instrument(name = "Change password", skip(password, pool))]
+pub async fn change_password_in_db(
+    user_id: Uuid,
+    password: Password,
+    pool: &PgPool,
+) -> Result<(), anyhow::Error> {
+    // Compute password_hash
+    let password_hash = spawn_blocking_with_tracing(|| compute_password_hash(password))
+        .await?
+        .context("Failed to hash password")?;
+
+    // Update users table, column: password_hash
+    sqlx::query!(
+        "UPDATE users SET password_hash=$1 WHERE user_id=$2",
+        password_hash.expose_secret(),
+        user_id
+    )
+    .execute(pool)
+    .await
+    .context("Failed to change user's password in the database.")?;
+    Ok(())
+}
+
+fn compute_password_hash(password: Password) -> Result<Secret<String>, anyhow::Error> {
+    // 1. Generate random salt
+    let salt = SaltString::generate(&mut rand::thread_rng());
+    // 2. Argon2 algorithm.
+    let password_hash = Argon2::new(
+        Algorithm::Argon2id,
+        Version::V0x13,
+        Params::new(15000, 2, 1, None).unwrap(),
+    )
+    .hash_password(password.expose_secret().as_bytes(), &salt)?
+    .to_string();
+
+    Ok(Secret::new(password_hash))
+}
+
+#[derive(Clone)]
+pub struct Password(Secret<String>);
+
+impl Password {
+    /// # OWASP’s a minimum set of requirements for password
+    /// when it comes to password strength -
+    /// passwords should be longer than 12 characters
+    /// but shorter than 128 characters.
+    pub fn parse(s: impl Into<String>) -> Result<Password, anyhow::Error> {
+        use unicode_segmentation::UnicodeSegmentation;
+        let s = s.into();
+
+        let is_too_short = s.graphemes(true).count() < 12;
+        if is_too_short {
+            return Err(anyhow::anyhow!(
+                "The password length must be at least 12 characters."
+            ));
+        }
+
+        let is_too_long = s.graphemes(true).count() > 128;
+        if is_too_long {
+            return Err(anyhow::anyhow!(
+                "The password length must be less than 128 characters."
+            ));
+        }
+
+        Ok(Password(Secret::new(s)))
+    }
+
+    pub fn inner_ref(&self) -> &Secret<String> {
+        &self.0
+    }
+
+    pub fn expose_secret(&self) -> String {
+        self.0.expose_secret().clone()
+    }
 }

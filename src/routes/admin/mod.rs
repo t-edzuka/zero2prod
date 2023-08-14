@@ -1,3 +1,7 @@
+/// # Admin module
+/// ## Note: New admin user registration not implemented.
+/// In the book, we assume the first user is seeded by database migration.
+///
 mod dashboard;
 mod logout;
 mod password;
