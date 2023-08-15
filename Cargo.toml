@@ -15,7 +15,7 @@ actix-session = { version = "0.7", features = ["redis-rs-tls-session"] }
 actix-web = "4.3.1"
 actix-web-flash-messages = { version = "0.4.2", features = ["cookies"] }
 actix-web-lab = "0.19.1"
-anyhow = "1.0.72"
+anyhow = "1.0.73"
 argon2 = { version = "0.5.1", features = ["std"] }
 base64 = "0.21.2"
 chrono = { version = "0.4", default-features = false, features = ["clock"] }
