@@ -12,6 +12,7 @@ create table idempotency
     response_status_code smallint      NOT NULL,
     response_headers     header_pair[] NOT NULL,
     response_body        bytea         NOT NULL,
-    created_at           timestamptz   NOT NULL
+    created_at timestamptz NOT NULL,
+    primary key (user_id, idempotency_key)
 
 );

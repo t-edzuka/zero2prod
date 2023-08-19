@@ -7,7 +7,9 @@ use sqlx::PgPool;
 use crate::authentication::UserId;
 use crate::domain::SubscriberEmail;
 use crate::email_client::EmailClient;
-use crate::idempotency::{get_saved_response, save_response, IdempotencyKey};
+use crate::idempotency::{
+    get_saved_response, save_response, try_processing, IdempotencyKey, NextAction,
+};
 use crate::utils::{e400, e500, see_other};
 
 #[derive(serde::Deserialize)]
@@ -41,15 +43,25 @@ pub async fn publish_newsletter(
         idempotency_key,
     } = form.into_inner();
     // 2. Parse the idempotency_key from the form data
-    let idempotency_key = // TODO: Process this idempotency_key using the database.
-        IdempotencyKey::try_from(idempotency_key).map_err(e400)?;
+    let idempotency_key = IdempotencyKey::try_from(idempotency_key).map_err(e400)?;
+
+    let transaction = match try_processing(&pool, &idempotency_key, *user_id)
+        .await
+        .map_err(e500)?
+    {
+        NextAction::StartProcessing(t) => t,
+        NextAction::ReturnSavedResponse(http_response) => {
+            success_message().send();
+            return Ok(http_response);
+        }
+    };
 
     // 2.5 Check if the newsletter has already been published
     let maybe_saved_response = get_saved_response(&pool, &idempotency_key, *user_id)
         .await
         .map_err(e500)?;
     if let Some(saved_response) = maybe_saved_response {
-        FlashMessage::info("The newsletter has been published.").send();
+        success_message().send();
         return Ok(saved_response);
     }
 
@@ -76,10 +88,10 @@ pub async fn publish_newsletter(
             }
         }
     }
-    FlashMessage::info("The newsletter has been published.").send();
+    success_message().send();
     let response = see_other("/admin/newsletters");
     // 5. Save the response
-    let response = save_response(&pool, &idempotency_key, *user_id, response)
+    let response = save_response(transaction, &idempotency_key, *user_id, response)
         .await
         .map_err(e500)?;
     Ok(response)
@@ -111,4 +123,8 @@ async fn get_confirmed_subscribers(
         })
         .collect::<Vec<_>>();
     Ok(confirmed_subscribers)
+}
+
+fn success_message() -> FlashMessage {
+    FlashMessage::info("The newsletter has been published.")
 }

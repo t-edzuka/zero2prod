@@ -1,4 +1,5 @@
 use serde_json::Value;
+use std::time::Duration;
 use uuid::Uuid;
 use wiremock::matchers::{any, method, path};
 use wiremock::{Mock, ResponseTemplate};
@@ -18,7 +19,7 @@ fn sample_newsletter_form() -> Value {
 #[tokio::test]
 async fn news_letters_are_not_delivered_to_unconfirmed_subscribers() {
     let app = spawn_app().await;
-    app.login().await;
+    app.test_user.login(&app).await;
     create_unconfirmed_subscriber(&app).await;
 
     // Mock postmark server email service will not be called,
@@ -82,7 +83,7 @@ async fn create_confirmed_subscriber(app: &TestApp) {
 async fn newsletters_are_delivered_to_confirmed_subscribers() {
     // Arrange
     let app = spawn_app().await;
-    app.login().await;
+    app.test_user.login(&app).await;
 
     create_confirmed_subscriber(&app).await; // Create a confirmed subscriber simulating a user clicking the confirmation link in the email.
     Mock::given(path("/email"))
@@ -121,7 +122,7 @@ async fn newsletter_creation_is_idempotent() {
     let app = spawn_app().await;
     // 2.Create confirmed subscriber. & login as an admin.
     create_confirmed_subscriber(&app).await;
-    app.login().await;
+    app.test_user.login(&app).await;
     // 3. Mount mockserver,
     // which expects to be called with a POST /email endpoint, only once with response 200.
     Mock::given(path("/email"))
@@ -153,4 +154,39 @@ async fn newsletter_creation_is_idempotent() {
     assert_is_redirect_to(&response, "/admin/newsletters");
     // 2. The same "published" message will be shown in the page.
     assert!(html_page.contains("The newsletter has been published."));
+}
+
+#[tokio::test]
+async fn concurrent_form_submission_is_handled_gracefully() {
+    // Arrange
+    let app = spawn_app().await;
+    create_confirmed_subscriber(&app).await;
+    app.test_user.login(&app).await;
+
+    Mock::given(path("/email"))
+        .and(method("POST"))
+        // Setting a long delay to ensure that the second request
+        // arrives before the first one completes
+        .respond_with(ResponseTemplate::new(200).set_delay(Duration::from_secs(2)))
+        // .expect(1)
+        .mount(&app.email_server)
+        .await;
+
+    // Act - Submit two newsletter forms concurrently
+    let newsletter_request_body = serde_json::json!({
+        "title": "Newsletter title",
+        "text_content": "Newsletter body as plain text",
+        "html_content": "<p>Newsletter body as HTML</p>",
+        "idempotency_key": uuid::Uuid::new_v4().to_string()
+    });
+    let response1 = app.post_publish_newsletter(&newsletter_request_body);
+    let response2 = app.post_publish_newsletter(&newsletter_request_body);
+    let (response1, response2) = tokio::join!(response1, response2);
+
+    assert_eq!(response1.status(), response2.status());
+    assert_eq!(
+        response1.text().await.unwrap(),
+        response2.text().await.unwrap()
+    );
+    // Mock verifies on Drop that we have sent the newsletter email **once**
 }

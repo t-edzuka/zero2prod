@@ -140,16 +140,6 @@ impl TestApp {
             .await
             .expect("Failed to fetch POST /logout response")
     }
-
-    pub async fn login(&self) {
-        let body = serde_json::json!({
-            "username": self.test_user.username,
-            "password": self.test_user.password,
-        });
-
-        let response = self.post_login(&body).await;
-        assert_is_redirect_to(&response, "/admin/dashboard");
-    }
 }
 
 pub fn assert_is_redirect_to(response: &reqwest::Response, redirect_endpoint: &str) {
@@ -221,6 +211,14 @@ impl TestUser {
         );
 
         q.execute(pool).await.expect("Failed to insert test user");
+    }
+
+    pub async fn login(&self, app: &TestApp) -> reqwest::Response {
+        let body = serde_json::json!({
+            "username": self.username,
+            "password": self.password,
+        });
+        app.post_login(&body).await
     }
 }
 

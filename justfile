@@ -90,7 +90,9 @@ t8:
 t9:
     export TEST_LOG=1 && export RUST_LOG="sqlx=error,info" && cargo t newsletters_are_delivered_to_confirmed_subscribers | bunyan
 
-
+t11:
+    export TEST_LOG=1 && export RUST_LOG="sqlx=error,info" && \
+    cargo t --test api newsletters::concurrent_form_submission_is_handled_gracefully | bunyan
 # reorder Cargo.toml
 tp:
     taplo fmt --option reorder_keys=true Cargo.toml
