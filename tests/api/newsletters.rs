@@ -147,6 +147,7 @@ async fn newsletter_creation_is_idempotent() {
     // Act2:
     // Call again with the same idempotency key.
     let response = app.post_publish_newsletter(&newsletter_form).await;
+    let html_page = app.get_publish_newsletter_html().await;
     // Assert2:
     // 1. The response is a redirect to /admin/newsletters.
     assert_is_redirect_to(&response, "/admin/newsletters");
