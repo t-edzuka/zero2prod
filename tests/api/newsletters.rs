@@ -1,7 +1,19 @@
+use serde_json::Value;
+use uuid::Uuid;
 use wiremock::matchers::{any, method, path};
 use wiremock::{Mock, ResponseTemplate};
 
 use crate::helpers::{assert_is_redirect_to, spawn_app, ConfirmationLinks, TestApp};
+
+fn sample_newsletter_form() -> Value {
+    let idempotency_key = Uuid::new_v4().to_string();
+    serde_json::json!({
+        "title": "Newsletter title",
+        "text_content": "Newsletter body",
+        "html_content": "<p>Newsletter body</p>",
+        "idempotency_key": idempotency_key,
+    })
+}
 
 #[tokio::test]
 async fn news_letters_are_not_delivered_to_unconfirmed_subscribers() {
@@ -19,13 +31,9 @@ async fn news_letters_are_not_delivered_to_unconfirmed_subscribers() {
         .await;
 
     // Create a newsletter
-    let news_request_body = serde_json::json!({
-        "title": "Newsletter title",
-        "text_content": "Newsletter body",
-        "html_content": "<p>Newsletter body</p>"
-    });
+
     // A blog author post a newsletter to notify subscribers by email.
-    let response_body = app.post_newsletters(&news_request_body).await;
+    let response_body = app.post_publish_newsletter(&sample_newsletter_form()).await;
     assert_is_redirect_to(&response_body, "/admin/newsletters");
 
     let html_page = app.get_publish_newsletter_html().await;
@@ -84,13 +92,7 @@ async fn newsletters_are_delivered_to_confirmed_subscribers() {
         .mount(&app.email_server)
         .await;
 
-    let news_request_body = serde_json::json!({
-        "title": "Newsletter title",
-        "text_content": "Newsletter body",
-        "html_content": "<p>Newsletter body</p>"
-    });
-
-    let response_body = app.post_newsletters(&news_request_body).await;
+    let response_body = app.post_publish_newsletter(&sample_newsletter_form()).await;
     assert_is_redirect_to(&response_body, "/admin/newsletters");
 
     let html_page = app.get_publish_newsletter_html().await;
@@ -100,19 +102,54 @@ async fn newsletters_are_delivered_to_confirmed_subscribers() {
 #[tokio::test]
 async fn you_must_be_logged_in_to_see_newsletter_form() {
     let app = spawn_app().await;
-    let response = app.get_publish_newsletter().await;
+    // Act
+    let response = app.post_publish_newsletter(&sample_newsletter_form()).await;
     assert_is_redirect_to(&response, "/login")
 }
 
 #[tokio::test]
-async fn you_must_be_logged_in_to_publish_newsletter() {
+async fn you_must_be_logged_in_to_publish_a_newsletter() {
     let app = spawn_app().await;
-    let response = app
-        .post_newsletters(&serde_json::json!({
-            "title": "Newsletter title",
-            "text_content": "Newsletter body",
-            "html_content": "<p>Newsletter body</p>"
-        }))
-        .await;
+    let response = app.post_publish_newsletter(&sample_newsletter_form()).await;
     assert_is_redirect_to(&response, "/login")
+}
+
+#[tokio::test]
+async fn newsletter_creation_is_idempotent() {
+    // Arrange:
+    // 1. Start the app.
+    let app = spawn_app().await;
+    // 2.Create confirmed subscriber. & login as an admin.
+    create_confirmed_subscriber(&app).await;
+    app.login().await;
+    // 3. Mount mockserver,
+    // which expects to be called with a POST /email endpoint, only once with response 200.
+    Mock::given(path("/email"))
+        .and(method("POST"))
+        .respond_with(ResponseTemplate::new(200))
+        .expect(1)
+        .mount(&app.email_server)
+        .await;
+
+    // 4. Create a newsletter as form data with a idempotent key, which is a POST request to /admin/newsletters,
+    // Act:
+    // Post the newsletter.
+    let newsletter_form = sample_newsletter_form();
+    let response = app.post_publish_newsletter(&newsletter_form).await;
+
+    // Assert:
+    // 1. The response is a redirect to /admin/newsletters.
+    assert_is_redirect_to(&response, "/admin/newsletters");
+    // 2. The "published" message will be shown in the page.
+    let html_page = app.get_publish_newsletter_html().await;
+    assert!(html_page.contains("The newsletter has been published."));
+
+    // Act2:
+    // Call again with the same idempotency key.
+    let response = app.post_publish_newsletter(&newsletter_form).await;
+    // Assert2:
+    // 1. The response is a redirect to /admin/newsletters.
+    assert_is_redirect_to(&response, "/admin/newsletters");
+    // 2. The same "published" message will be shown in the page.
+    assert!(html_page.contains("The newsletter has been published."));
 }

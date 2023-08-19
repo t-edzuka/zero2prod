@@ -1,5 +1,6 @@
 export DATABASE_URL := "postgres://postgres:password@127.0.0.1:5432/newsletter"
 export RUST_LOG := "debug"
+export RUSTC_WRAPPER := `which sccache`
 alias t := test
 alias c := check
 alias f := format
@@ -10,7 +11,7 @@ alias b := build
 alias pc := pre-commit
 
 run:
-    cargo run
+    cargo run | jq .
 check:
     cargo check
 dev:
@@ -33,13 +34,13 @@ lint:
 # cargo install bynyan
 # "bunyan" prettifies the outputted logs
 test:
-    export TEST_LOG=true && export RUST_LOG="sqlx=error,info" && cargo test | bunyan
+    export TEST_LOG=true && export RUST_LOG="sqlx=error,info" && cargo test -q | bunyan
 
 build-test:
     cargo build --tests
 
 init-db:
-    bash scripts/init_db.sh
+    bash scripts/init_db.sh && bash scripts/init_redis.sh
 
 psql:
     docker exec -it psql-dev psql {{DATABASE_URL}}
@@ -73,7 +74,7 @@ deps:
 
 
 fix:
-    cargo fix --allow-dirty && cargo clippy --fix --allow-dirty
+    cargo fix --allow-staged && cargo clippy --fix --allow-staged
 
 pre-commit:tp prepare-db fix format test
 
@@ -84,7 +85,7 @@ pre-commit:tp prepare-db fix format test
 t8:
     export TEST_LOG=enabled && \
     export RUST_LOG="sqlx=error,info" && \
-    cargo test subscribe_fails_if_there_is_a_fatal_database_error | bunyan
+    cargo test subscribe_fails_if_there_is_a_fatal_database_error
 
 t9:
     export TEST_LOG=1 && export RUST_LOG="sqlx=error,info" && cargo t newsletters_are_delivered_to_confirmed_subscribers | bunyan
