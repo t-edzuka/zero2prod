@@ -25,7 +25,7 @@ hmac = { version = "0.12.1", features = ["std"] }
 htmlescape = "0.3.1"
 log = "0.4"
 rand = { version = "0.8.5", features = ["std_rng"] }
-reqwest = { version = "0.11.18", default-features = false, features = [
+reqwest = { version = "0.11.19", default-features = false, features = [
   "json",
   "rustls-tls",
   "cookies",
