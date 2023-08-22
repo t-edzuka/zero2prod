@@ -46,6 +46,12 @@ pub async fn try_execute_task(
                         "Failed to deliver issue to a confirmed subscriber\
                         Skipping.",
                     );
+                    // TODO: Implement retry feature for failed email delivery.
+                    // Exercise:
+                    // Add new columns to issue_delivery_queue
+                    // 1. n_retries: smallint, how many attempts have already taken place.
+                    // 2. execute_after: how long we should wait before retrying
+                    // Retry logic:
                 }
             }
         }
@@ -61,10 +67,8 @@ pub async fn try_execute_task(
     Ok(ExecutionOutcome::TaskCompleted)
 }
 
-//  2. type = PgTransaction = Transaction<'static, Postgres>
 type PgTransaction = Transaction<'static, Postgres>;
 
-//  3. async fn dequeue_task -> Result<Option<(PgTransaction, Uuid, String)>, anyhow::Error>
 #[tracing::instrument(skip_all)]
 async fn dequeue_task(
     pool: &PgPool,
