@@ -1,10 +1,18 @@
+use fake::faker::internet::en::SafeEmail;
+use fake::faker::name::en::Name;
+use fake::Fake;
 use serde_json::Value;
 use std::time::Duration;
 use uuid::Uuid;
 use wiremock::matchers::{any, method, path};
-use wiremock::{Mock, ResponseTemplate};
+use wiremock::{Mock, MockBuilder, ResponseTemplate};
 
 use crate::helpers::{assert_is_redirect_to, spawn_app, ConfirmationLinks, TestApp};
+
+#[allow(unused)]
+fn when_sending_an_email() -> MockBuilder {
+    Mock::given(path("/email")).and(method("POST"))
+}
 
 fn sample_newsletter_form() -> Value {
     let idempotency_key = Uuid::new_v4().to_string();
@@ -39,10 +47,17 @@ async fn news_letters_are_not_delivered_to_unconfirmed_subscribers() {
 
     let html_page = app.get_publish_newsletter_html().await;
     assert!(html_page.contains("The newsletter has been published."));
+    app.dispatch_all_pending_emails().await;
 }
 
 async fn create_unconfirmed_subscriber(app: &TestApp) -> ConfirmationLinks {
-    let body = "name=le%20guin&email=ursula_le_guin%40gmail.com";
+    let name: String = Name().fake();
+    let email: String = SafeEmail().fake();
+    let body = serde_urlencoded::to_string(serde_json::json!({
+        "name": name,
+        "email": email,
+    }))
+    .expect("Failed to serialize the subscriber name and email data.");
 
     let _mock_guard = Mock::given(path("/email"))
         .and(method("POST"))
@@ -54,7 +69,7 @@ async fn create_unconfirmed_subscriber(app: &TestApp) -> ConfirmationLinks {
 
     // Create a subscriber, but not confirmed.
     let _api_response = app
-        .post_subscriptions(body.into())
+        .post_subscriptions(body)
         .await
         .error_for_status()
         .unwrap();
@@ -98,6 +113,7 @@ async fn newsletters_are_delivered_to_confirmed_subscribers() {
 
     let html_page = app.get_publish_newsletter_html().await;
     assert!(html_page.contains("The newsletter has been published."));
+    app.dispatch_all_pending_emails().await;
 }
 
 #[tokio::test]
@@ -105,7 +121,7 @@ async fn you_must_be_logged_in_to_see_newsletter_form() {
     let app = spawn_app().await;
     // Act
     let response = app.post_publish_newsletter(&sample_newsletter_form()).await;
-    assert_is_redirect_to(&response, "/login")
+    assert_is_redirect_to(&response, "/login");
 }
 
 #[tokio::test]
@@ -154,6 +170,7 @@ async fn newsletter_creation_is_idempotent() {
     assert_is_redirect_to(&response, "/admin/newsletters");
     // 2. The same "published" message will be shown in the page.
     assert!(html_page.contains("The newsletter has been published."));
+    app.dispatch_all_pending_emails().await;
 }
 
 #[tokio::test]
@@ -189,4 +206,5 @@ async fn concurrent_form_submission_is_handled_gracefully() {
         response2.text().await.unwrap()
     );
     // Mock verifies on Drop that we have sent the newsletter email **once**
+    app.dispatch_all_pending_emails().await;
 }

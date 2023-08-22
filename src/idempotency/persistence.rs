@@ -110,7 +110,17 @@ pub async fn try_processing(
     idempotency_key: &IdempotencyKey,
     user_id: Uuid,
 ) -> Result<NextAction, anyhow::Error> {
+    // The isolation level in postgres is "read committed" by default.
+    // In this isolation level, a SELECT query sees only data committed before the query began,
+    // while NEVER see data that is still uncommitted, or committed during query execution by concurrent transactions.
+
     let mut transaction = pool.begin().await?;
+
+    // This query is for the case that the "concurrent" requests are sent to this server.
+    // The first request will insert a row into the table,
+    // and the second request will try to insert a row into the table,
+    // but it will do nothing because of the conflict.
+
     let query = sqlx::query!(
         r#"
         INSERT INTO idempotency (
@@ -128,8 +138,13 @@ pub async fn try_processing(
     let n_inserted_rows = transaction.execute(query).await?.rows_affected();
 
     if n_inserted_rows > 0 {
+        // This means that the request is the first request.
+        // This returning transaction will be used in the next `UPDATE` query.
+        // In postgres, the latter updater will *wait*
+        // for the first updater to commit or rollback.
         Ok(NextAction::StartProcessing(transaction))
     } else {
+        // This means that the request is the second or later request.
         let saved_response = get_saved_response(pool, idempotency_key, user_id)
             .await?
             .ok_or_else(|| {

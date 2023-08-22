@@ -7,6 +7,8 @@ use uuid::Uuid;
 use wiremock::MockServer;
 
 use zero2prod::configuration::{get_configuration, DatabaseSettings};
+use zero2prod::email_client::EmailClient;
+use zero2prod::issue_delivery_worker::{try_execute_task, ExecutionOutcome};
 use zero2prod::startup::Application;
 use zero2prod::telemetry::{get_subscriber, init_subscriber};
 
@@ -29,10 +31,21 @@ pub struct TestApp {
     pub email_server: MockServer,
     pub test_user: TestUser,
     pub api_client: reqwest::Client,
+    pub email_client: EmailClient,
 }
 
 // A set of API client implementations for testing.
 impl TestApp {
+    pub async fn dispatch_all_pending_emails(&self) {
+        loop {
+            let outcome = try_execute_task(&self.db_pool, &self.email_client).await;
+            match outcome {
+                Ok(ExecutionOutcome::TaskCompleted) => continue,
+                Ok(ExecutionOutcome::EmptyQueue) => break,
+                Err(_) => continue,
+            }
+        }
+    }
     pub async fn post_subscriptions(&self, body: String) -> reqwest::Response {
         self.api_client
             .post(&format!("{}/subscriptions", self.address))
@@ -280,6 +293,7 @@ pub async fn spawn_app() -> TestApp {
         email_server,
         test_user: TestUser::generate(),
         api_client,
+        email_client: configuration.email_client.client(),
     };
 
     // Create a test user

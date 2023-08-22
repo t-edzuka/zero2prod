@@ -5,6 +5,7 @@ use sqlx::postgres::{PgConnectOptions, PgSslMode};
 use sqlx::ConnectOptions;
 
 use crate::domain::SubscriberEmail;
+use crate::email_client::EmailClient;
 
 // `Settings` struct is basically coming from `configurations/base.toml`, `local.toml`, or `production.toml`
 // In production environment, the values may be overridden by environment variables. See `get_configuration()`.
@@ -74,6 +75,18 @@ pub struct EmailClientSettings {
 }
 
 impl EmailClientSettings {
+    pub fn client(&self) -> EmailClient {
+        let sender_email = self
+            .sender()
+            .expect("Invalid sender email address in settings.");
+        let timeout = self.timeout();
+        EmailClient::new(
+            self.base_url.clone(),
+            sender_email,
+            self.authorization_token.clone(),
+            timeout,
+        )
+    }
     pub fn sender(&self) -> Result<SubscriberEmail, String> {
         SubscriberEmail::parse(self.sender_email.clone())
     }
@@ -101,7 +114,8 @@ pub fn get_configuration() -> Result<Settings, config::ConfigError> {
         ))
         .add_source(config::File::from(
             // Control configuration by APP_ENVIRONMENT value and its toml file name.
-            // like "production.toml", "local.toml", etc.
+            // e.g., APP_ENVIRONMENT="production" => "production.toml",
+            // APP_ENVIRONMENT="local" =>  "local.toml", etc.
             configuration_directory.join(environment_filename),
         ))
         .add_source(

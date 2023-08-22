@@ -93,6 +93,11 @@ t9:
 t11:
     export TEST_LOG=1 && export RUST_LOG="sqlx=error,info" && \
     cargo t --test api newsletters::concurrent_form_submission_is_handled_gracefully | bunyan
+
+t11-2:
+    export TEST_LOG=1 && export RUST_LOG="sqlx=error,info" && \
+    cargo t --test api newsletters::transient_errors_do_not_cause_duplicate_deliveries_on_retries | bunyan
+
 # reorder Cargo.toml
 tp:
     taplo fmt --option reorder_keys=true Cargo.toml

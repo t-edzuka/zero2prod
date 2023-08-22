@@ -3,6 +3,7 @@ use serde::Serialize;
 
 use crate::domain::SubscriberEmail;
 
+#[derive(Debug)]
 pub struct EmailClient {
     http_client: reqwest::Client,
     // ? This depends on an external crate. Do we need abstraction?
