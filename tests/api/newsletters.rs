@@ -9,11 +9,6 @@ use wiremock::{Mock, MockBuilder, ResponseTemplate};
 
 use crate::helpers::{assert_is_redirect_to, spawn_app, ConfirmationLinks, TestApp};
 
-#[allow(unused)]
-fn when_sending_an_email() -> MockBuilder {
-    Mock::given(path("/email")).and(method("POST"))
-}
-
 fn sample_newsletter_form() -> Value {
     let idempotency_key = Uuid::new_v4().to_string();
     serde_json::json!({
