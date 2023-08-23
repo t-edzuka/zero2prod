@@ -70,7 +70,7 @@ init-redis:
     bash ./scripts/init_redis.sh
 
 deps:
-    cargo +nightly udeps
+    cargo +nightly udeps --all-targets
 
 
 fix:
