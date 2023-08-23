@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        UPDATE issue_delivery_queue\n        SET\n            n_retries = n_retries + 1,\n            retry_after = now() + ((interval '1 sec') * n_retries ^ 2)\n        WHERE\n            newsletter_issue_id = $1 AND\n            subscriber_email = $2\n        ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "63eb1c3c588eb4bf02ad8748743d29272514217d53adaa6e56f14ee02931e9f6"
+}

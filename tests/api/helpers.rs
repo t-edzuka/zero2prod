@@ -41,6 +41,8 @@ impl TestApp {
             let outcome = try_execute_task(&self.db_pool, &self.email_client).await;
             match outcome {
                 Ok(ExecutionOutcome::TaskCompleted) => continue,
+                Ok(ExecutionOutcome::TaskRetryScheduled) => continue,
+                Ok(ExecutionOutcome::TaskSkipped) => continue,
                 Ok(ExecutionOutcome::EmptyQueue) => break,
                 Err(_) => continue,
             }
