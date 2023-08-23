@@ -2,4 +2,4 @@ mod get;
 mod post;
 
 pub use get::publish_newsletter_form;
-pub use post::publish_newsletter;
+pub use post::{publish_newsletter, SUCCESS_MESSAGE};

@@ -6,6 +6,7 @@ use std::time::Duration;
 use uuid::Uuid;
 use wiremock::matchers::{any, method, path};
 use wiremock::{Mock, ResponseTemplate};
+use zero2prod::routes::SUCCESS_MESSAGE;
 
 use crate::helpers::{assert_is_redirect_to, spawn_app, ConfirmationLinks, TestApp};
 
@@ -41,7 +42,7 @@ async fn news_letters_are_not_delivered_to_unconfirmed_subscribers() {
     assert_is_redirect_to(&response_body, "/admin/newsletters");
 
     let html_page = app.get_publish_newsletter_html().await;
-    assert!(html_page.contains("The newsletter has been published."));
+    assert!(html_page.contains(SUCCESS_MESSAGE));
     app.dispatch_all_pending_emails().await;
 }
 
@@ -107,7 +108,7 @@ async fn newsletters_are_delivered_to_confirmed_subscribers() {
     assert_is_redirect_to(&response_body, "/admin/newsletters");
 
     let html_page = app.get_publish_newsletter_html().await;
-    assert!(html_page.contains("The newsletter has been published."));
+    assert!(html_page.contains(SUCCESS_MESSAGE));
     app.dispatch_all_pending_emails().await;
 }
 
@@ -154,7 +155,7 @@ async fn newsletter_creation_is_idempotent() {
     assert_is_redirect_to(&response, "/admin/newsletters");
     // 2. The "published" message will be shown in the page.
     let html_page = app.get_publish_newsletter_html().await;
-    assert!(html_page.contains("The newsletter has been published."));
+    assert!(html_page.contains(SUCCESS_MESSAGE));
 
     // Act2:
     // Call again with the same idempotency key.
@@ -164,7 +165,7 @@ async fn newsletter_creation_is_idempotent() {
     // 1. The response is a redirect to /admin/newsletters.
     assert_is_redirect_to(&response, "/admin/newsletters");
     // 2. The same "published" message will be shown in the page.
-    assert!(html_page.contains("The newsletter has been published."));
+    assert!(html_page.contains(SUCCESS_MESSAGE));
     app.dispatch_all_pending_emails().await;
 }
 

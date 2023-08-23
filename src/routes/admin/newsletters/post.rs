@@ -58,6 +58,7 @@ pub async fn publish_newsletter(
         .context("Failed to store newsletter issue details")
         .map_err(e500)?;
 
+    // 4. Enqueue delivery tasks, which is processed by issue_delivery_worker.rs
     enqueue_delivery_tasks(&mut transaction, issue_id)
         .await
         .context("Failed to enqueue delivery tasks")
@@ -72,8 +73,10 @@ pub async fn publish_newsletter(
     Ok(response)
 }
 
+pub const SUCCESS_MESSAGE: &str =
+    "The newsletter issue has been accepted -emails will go out shortly.";
 fn success_message() -> FlashMessage {
-    FlashMessage::info("The newsletter has been published.")
+    FlashMessage::info(SUCCESS_MESSAGE)
 }
 
 #[tracing::instrument(skip_all)]

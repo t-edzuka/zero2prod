@@ -78,7 +78,6 @@ impl TestApp {
             .expect("Failed to fetch GET /newsletters/publish response")
     }
 
-    #[allow(unused)]
     pub async fn get_publish_newsletter_html(&self) -> String {
         self.get_publish_newsletter().await.text().await.expect(
             "Failed to fetch GET /newsletters/publish response body, expected body is a HTML text.",
