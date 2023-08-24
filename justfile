@@ -74,30 +74,9 @@ deps:
 
 
 fix:
-    cargo fix --allow-staged && cargo clippy --fix --allow-staged
+    cargo fix --allow-dirty && cargo clippy --fix --allow-dirty
 
 pre-commit:tp prepare-db fix format test
-
-
-# Test in chapter 8
-# sqlx logs are a bit noisy, so we cut them out to make the output more readable
-#    export TEST_LOG=true && \
-t8:
-    export TEST_LOG=enabled && \
-    export RUST_LOG="sqlx=error,info" && \
-    cargo test subscribe_fails_if_there_is_a_fatal_database_error
-
-t9:
-    export TEST_LOG=1 && export RUST_LOG="sqlx=error,info" && cargo t newsletters_are_delivered_to_confirmed_subscribers | bunyan
-
-t11:
-    export TEST_LOG=1 && export RUST_LOG="sqlx=error,info" && \
-    cargo t --test api newsletters::concurrent_form_submission_is_handled_gracefully | bunyan
-
-t11-2:
-    export TEST_LOG=1 && export RUST_LOG="sqlx=error,info" && \
-    cargo t --test api newsletters::transient_errors_do_not_cause_duplicate_deliveries_on_retries | bunyan
-
 # reorder Cargo.toml
 tp:
     taplo fmt --option reorder_keys=true Cargo.toml
