@@ -94,7 +94,7 @@ struct EmailTask {
 async fn dequeue_task(pool: &PgPool) -> Result<Option<(PgTransaction, EmailTask)>, anyhow::Error> {
     // Use transaction
     let mut transaction = pool.begin().await?;
-    let q = sqlx::query_as!(
+    let maybe_email_task = sqlx::query_as!(
         EmailTask,
         r#"
         SELECT newsletter_issue_id, subscriber_email, n_retries
@@ -104,9 +104,10 @@ async fn dequeue_task(pool: &PgPool) -> Result<Option<(PgTransaction, EmailTask)
         LIMIT 1
         FOR UPDATE SKIP LOCKED
         "#,
-    );
+    )
+    .fetch_optional(transaction.deref_mut())
+    .await?;
 
-    let maybe_email_task = q.fetch_optional(transaction.deref_mut()).await?;
     match maybe_email_task {
         Some(email_task) => Ok(Some((transaction, email_task))),
         None => Ok(None),
@@ -120,7 +121,7 @@ async fn delete_task(
     issue_id: Uuid,
     email: &str,
 ) -> Result<(), anyhow::Error> {
-    let q = sqlx::query!(
+    let query = sqlx::query!(
         r#"
         DELETE FROM issue_delivery_queue
         WHERE newsletter_issue_id = $1 AND subscriber_email = $2
@@ -129,7 +130,7 @@ async fn delete_task(
         email,
     );
 
-    transaction.execute(q).await?;
+    transaction.execute(query).await?;
     transaction.commit().await?;
     Ok(())
 }
