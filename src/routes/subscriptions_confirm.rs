@@ -4,7 +4,6 @@ use serde::Deserialize;
 use sqlx::PgPool;
 use uuid::Uuid;
 
-#[allow(dead_code)]
 #[derive(Deserialize)]
 pub struct Parameters {
     subscription_token: String,

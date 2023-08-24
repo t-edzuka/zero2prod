@@ -9,4 +9,5 @@ pub mod startup;
 pub mod telemetry;
 pub mod utils;
 
+pub mod idempotency_expiring_worker;
 pub mod issue_delivery_worker;

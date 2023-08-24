@@ -1,11 +1,15 @@
+use chrono::Utc;
 use fake::faker::internet::en::SafeEmail;
 use fake::faker::name::en::Name;
 use fake::Fake;
 use serde_json::Value;
+use sqlx::PgPool;
+use std::ops::Sub;
 use std::time::Duration;
 use uuid::Uuid;
 use wiremock::matchers::{any, method, path};
 use wiremock::{Mock, ResponseTemplate};
+use zero2prod::idempotency_expiring_worker::delete_expired_idempotency_key;
 use zero2prod::routes::SUCCESS_MESSAGE;
 
 use crate::helpers::{assert_is_redirect_to, spawn_app, ConfirmationLinks, TestApp};
@@ -236,4 +240,59 @@ async fn transient_errors_get_retried() {
 
     // Mock verifies on Drop that we have attempted to send the email twice.
     // and the second time should have been successful.
+}
+
+#[tokio::test]
+async fn old_idempotency_key_is_cleaned_up() {
+    // Arrange
+    let app = spawn_app().await;
+    create_confirmed_subscriber(&app).await;
+    app.test_user.login(&app).await;
+    let user_id = app.test_user.user_id;
+    let pool = &app.db_pool;
+    // When 2 idempotency keys are expired and 1 is valid.
+    create_expired_idempotency_key(pool, user_id).await;
+    create_expired_idempotency_key(pool, user_id).await;
+    create_valid_idempotency_key(pool, user_id).await;
+    // Act
+    let deleted_count = delete_expired_idempotency_key(pool, 48)
+        .await
+        .expect("Failed to delete expired idempotency key.");
+
+    assert_eq!(deleted_count, 2);
+}
+
+async fn create_expired_idempotency_key(pool: &PgPool, user_id: Uuid) {
+    let now = Utc::now();
+    let before_49_hours = now.sub(chrono::Duration::hours(49));
+
+    sqlx::query!(
+        r#"
+        INSERT INTO idempotency (user_id, idempotency_key, created_at)
+        VALUES ($1, $2, $3)
+        "#,
+        user_id,
+        Uuid::new_v4().to_string(),
+        before_49_hours,
+    )
+    .execute(pool)
+    .await
+    .expect("Failed to insert expired idempotency key.");
+}
+
+async fn create_valid_idempotency_key(pool: &PgPool, user_id: Uuid) {
+    let now = Utc::now();
+
+    sqlx::query!(
+        r#"
+        INSERT INTO idempotency (user_id, idempotency_key, created_at)
+        VALUES ($1, $2, $3)
+        "#,
+        user_id,
+        Uuid::new_v4().to_string(),
+        now,
+    )
+    .execute(pool)
+    .await
+    .expect("Failed to insert a new idempotency key.");
 }

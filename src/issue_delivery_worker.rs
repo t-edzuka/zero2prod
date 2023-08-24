@@ -1,5 +1,3 @@
-//  1. async fn try_execute_task -> Result<(), anyhow::Error>
-
 use crate::configuration::Settings;
 use crate::domain::SubscriberEmail;
 use crate::email_client::EmailClient;
@@ -67,7 +65,6 @@ pub async fn try_execute_task(
                         "Failed to deliver issue to a confirmed subscriber\
                         Skipping.",
                     );
-                    // TODO: Implement retry feature for failed email delivery.
                     queue_retry_task(transaction, newsletter_issue_id, email.as_ref()).await?;
                     Ok(ExecutionOutcome::TaskRetryScheduled)
                 }

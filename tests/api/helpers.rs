@@ -48,6 +48,7 @@ impl TestApp {
             }
         }
     }
+
     pub async fn post_subscriptions(&self, body: String) -> reqwest::Response {
         self.api_client
             .post(&format!("{}/subscriptions", self.address))
