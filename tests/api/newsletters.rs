@@ -250,6 +250,7 @@ async fn old_idempotency_key_is_cleaned_up() {
     app.test_user.login(&app).await;
     let user_id = app.test_user.user_id;
     let pool = &app.db_pool;
+
     // When 2 idempotency keys are expired and 1 is valid.
     create_expired_idempotency_key(pool, user_id).await;
     create_expired_idempotency_key(pool, user_id).await;
@@ -258,8 +259,17 @@ async fn old_idempotency_key_is_cleaned_up() {
     let deleted_count = delete_expired_idempotency_key(pool, 48)
         .await
         .expect("Failed to delete expired idempotency key.");
-
     assert_eq!(deleted_count, 2);
+
+    let the_rest_count = sqlx::query!(
+        r#"
+        SELECT COUNT(*) AS count FROM idempotency
+        "#,
+    )
+    .fetch_one(pool)
+    .await
+    .expect("Failed to count the rows in idempotency table.");
+    assert_eq!(the_rest_count.count, Some(1));
 }
 
 async fn create_expired_idempotency_key(pool: &PgPool, user_id: Uuid) {
