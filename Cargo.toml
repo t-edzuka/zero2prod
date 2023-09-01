@@ -17,7 +17,7 @@ actix-web-flash-messages = { version = "0.4.2", features = ["cookies"] }
 actix-web-lab = "0.19.1"
 anyhow = "1.0.75"
 argon2 = { version = "0.5.1", features = ["std"] }
-base64 = "0.21.2"
+base64 = "0.21.3"
 chrono = { version = "0.4", default-features = false, features = ["clock"] }
 config = "0.13.3"
 hex = "0.4.3"
