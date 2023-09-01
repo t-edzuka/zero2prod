@@ -12,7 +12,7 @@ path = "src/main.rs"
 
 [dependencies]
 actix-session = { version = "0.7", features = ["redis-rs-tls-session"] }
-actix-web = "4.3.1"
+actix-web = "4.4.0"
 actix-web-flash-messages = { version = "0.4.2", features = ["cookies"] }
 actix-web-lab = "0.19.1"
 anyhow = "1.0.75"
