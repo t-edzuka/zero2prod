@@ -25,7 +25,7 @@ jobs:
       # Label used to access the service container
       postgres:
         # Docker Hub image
-        image: postgres:15
+        image: postgres:16
         # Environment variables scoped only for the `postgres` element
         env:
           POSTGRES_USER: postgres
