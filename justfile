@@ -80,6 +80,8 @@ pre-commit:tp prepare-db fix format test
 # reorder Cargo.toml
 tp:
     taplo fmt --option reorder_keys=true Cargo.toml
+audit:
+    cargo deny check advisories
 # For a digital ocean new deployment.
 #dauth:
 #    doctl auth init
