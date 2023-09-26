@@ -33,7 +33,7 @@ secrecy = { version = "0.8.0", features = ["serde"] }
 serde = { version = "1.0.188", features = ["derive"] }
 serde-aux = "4"
 serde_json = "1"
-sha2 = "0.10.7"
+sha2 = "0.10.8"
 thiserror = "1.0.48"
 tokio = { version = "1.32.0", features = ["macros", "rt-multi-thread"] }
 tracing = "0.1"
