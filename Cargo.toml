@@ -55,7 +55,7 @@ features = [
   "migrate",
   "runtime-tokio-rustls",
 ]
-version = "0.7.1"
+version = "0.7.2"
 
 
 [dev-dependencies]
