@@ -60,7 +60,7 @@ version = "0.7.2"
 
 [dev-dependencies]
 claims = { version = "0.7" }
-fake = "2.8.0"
+fake = "2.9.1"
 linkify = "0.10.0"
 once_cell = "1.18.0"
 quickcheck = "1.0.3"
