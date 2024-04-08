@@ -1,6 +1,6 @@
 use actix_web::body::to_bytes;
+use actix_web::http::StatusCode;
 use actix_web::HttpResponse;
-use reqwest::StatusCode;
 use sqlx::postgres::{PgHasArrayType, PgTypeInfo};
 use sqlx::{Executor, PgPool, Postgres, Transaction};
 use uuid::Uuid;
@@ -21,7 +21,7 @@ pub async fn get_saved_response(
 ) -> Result<Option<HttpResponse>, anyhow::Error> {
     // `! as {column_name}` is required to avoid the error:
     // `!` mark forcefully assume to tell the compiler that the column will not be null, while the column type is nullable.
-    // So if we mistakenly insert null value into the column, we will get an "runtime" error.
+    // So if we mistakenly insert null value into the column, we will get "runtime" error.
     let query = sqlx::query!(
         r#"
         SELECT 

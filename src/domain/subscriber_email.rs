@@ -1,15 +1,16 @@
-use validator::validate_email;
+use validator::ValidateEmail;
 
 #[derive(Clone, Debug)]
 pub struct SubscriberEmail(String);
 
 impl SubscriberEmail {
     pub fn parse(s: String) -> Result<Self, String> {
-        let is_ok_email = validate_email(&s);
-        if !is_ok_email {
-            return Err(format!("{} is not a valid email address.", s));
+        let is_ok_email = s.validate_email();
+        if is_ok_email {
+            Ok(Self(s))
+        } else {
+            Err(s)
         }
-        Ok(Self(s))
     }
 }
 

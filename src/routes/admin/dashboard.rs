@@ -1,9 +1,8 @@
 use crate::session_state::TypedSession;
 use crate::utils;
-use actix_web::http::header::ContentType;
+use actix_web::http::header::{ContentType, LOCATION};
 use actix_web::{web, HttpResponse};
 use anyhow::Context;
-use reqwest::header::LOCATION;
 use sqlx::PgPool;
 use uuid::Uuid;
 

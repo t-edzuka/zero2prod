@@ -19,15 +19,15 @@ anyhow = "1.0.81"
 argon2 = { version = "0.5.3", features = ["std"] }
 base64 = "0.22.0"
 chrono = { version = "0.4", default-features = false, features = ["clock"] }
-config = "0.14.0"
+config = { version = "0.14.0", git = "https://github.com/mehcode/config-rs" }
 hex = "0.4.3"
 hmac = { version = "0.12.1", features = ["std"] }
 log = "0.4"
 rand = { version = "0.8.5", features = ["std_rng"] }
-reqwest = { version = "0.11.27", default-features = false, features = [
-  "json",
-  "rustls-tls",
-  "cookies",
+reqwest = { version = "0.12.3", default-features = false, features = [
+    "json",
+    "rustls-tls",
+    "cookies",
 ] }
 secrecy = { version = "0.8.0", features = ["serde"] }
 serde = { version = "1.0.197", features = ["derive"] }
@@ -35,7 +35,7 @@ serde-aux = "4"
 serde_json = "1"
 sha2 = "0.10.8"
 thiserror = "1.0.58"
-tokio = { version = "1.36.0", features = ["macros", "rt-multi-thread"] }
+tokio = { version = "1.37.0", features = ["macros", "rt-multi-thread"] }
 tracing = "0.1.40"
 tracing-actix-web = "0.7.10"
 tracing-bunyan-formatter = "0.3.9"
@@ -43,17 +43,17 @@ tracing-log = "0.2.0"
 tracing-subscriber = { version = "0.3", features = ["registry", "env-filter"] }
 unicode-segmentation = "1.11.0"
 uuid = { version = "1.8.0", features = ["v4", "serde"] }
-validator = "0.16"
+validator = "0.18.0"
 
 [dependencies.sqlx]
 default-features = false
 features = [
-  "macros",
-  "postgres",
-  "uuid",
-  "chrono",
-  "migrate",
-  "runtime-tokio-rustls",
+    "macros",
+    "postgres",
+    "uuid",
+    "chrono",
+    "migrate",
+    "runtime-tokio-rustls",
 ]
 version = "0.7.4"
 
