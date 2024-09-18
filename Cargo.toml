@@ -29,7 +29,7 @@ reqwest = { version = "0.12.4", default-features = false, features = [
     "rustls-tls",
     "cookies",
 ] }
-secrecy = { version = "0.8.0", features = ["serde"] }
+secrecy = { version = "0.10.0", features = ["serde"] }
 serde = { version = "1.0.200", features = ["derive"] }
 serde-aux = "4.5.0"
 serde_json = "1.0.116"
