@@ -6,15 +6,15 @@ use crate::routes::admin::dashboard::get_username;
 use crate::utils::{e500, see_other};
 use actix_web::{web, HttpResponse};
 use actix_web_flash_messages::FlashMessage;
-use secrecy::{ExposeSecret, Secret};
+use secrecy::{ExposeSecret, SecretBox};
 use serde::Deserialize;
 use sqlx::PgPool;
 
 #[derive(Deserialize)]
 pub struct FormData {
-    current_password: Secret<String>,
-    new_password: Secret<String>,
-    new_password_check: Secret<String>,
+    current_password: SecretBox<String>,
+    new_password: SecretBox<String>,
+    new_password_check: SecretBox<String>,
 }
 
 struct ValidPasswords {

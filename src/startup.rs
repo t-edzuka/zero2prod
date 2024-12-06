@@ -5,11 +5,12 @@ use std::net::TcpListener;
 use crate::authentication::reject_anonymous_user;
 use actix_web::cookie::Key;
 use actix_web::dev::Server;
+use actix_web::middleware::from_fn;
 use actix_web::{web, App, HttpServer};
 use actix_web_flash_messages::storage::CookieMessageStore;
 use actix_web_flash_messages::FlashMessagesFramework;
-use actix_web_lab::middleware::from_fn;
-use secrecy::{ExposeSecret, Secret};
+use secrecy::{ExposeSecret, SecretString};
+
 use sqlx::postgres::PgPoolOptions;
 use sqlx::PgPool;
 use tracing_actix_web::TracingLogger;
@@ -33,7 +34,10 @@ impl Application {
 
         let email_client = configuration.email_client.client();
         let listener = TcpListener::bind(configuration.application.addr())?;
-        let port = listener.local_addr().unwrap().port();
+        let port = listener
+            .local_addr()
+            .expect("Failed to get local address")
+            .port();
         let server = run(
             listener,
             connection_pool,
@@ -60,7 +64,7 @@ impl Application {
 pub struct ApplicationBaseUrl(pub String);
 
 #[derive(Clone)]
-pub struct HmacSecret(pub Secret<String>);
+pub struct HmacSecret(pub SecretString);
 
 pub fn get_connection_pool(database_settings: &DatabaseSettings) -> PgPool {
     PgPoolOptions::new()
@@ -73,8 +77,8 @@ pub async fn run(
     db_pool: PgPool,
     email_client: EmailClient,
     base_url: String,
-    hmac_secret: Secret<String>,
-    redis_uri: Secret<String>,
+    hmac_secret: SecretString,
+    redis_uri: SecretString,
 ) -> Result<Server, anyhow::Error> {
     let connection = web::Data::new(db_pool);
     let email_client = web::Data::new(email_client);

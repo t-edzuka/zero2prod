@@ -1,4 +1,4 @@
-use secrecy::{ExposeSecret, Secret};
+use secrecy::{ExposeSecret, SecretString};
 use serde::Serialize;
 
 use crate::domain::SubscriberEmail;
@@ -11,14 +11,14 @@ pub struct EmailClient {
     // ? SubscriberEmail is a domain type, so why is it used here?
     base_url: String,
     // external service url to send email
-    authorization_token: Secret<String>,
+    authorization_token: SecretString,
 }
 
 impl EmailClient {
     pub fn new(
         base_url: String,
         sender: SubscriberEmail,
-        authorization_token: Secret<String>,
+        authorization_token: SecretString,
         time_out: std::time::Duration,
     ) -> Self {
         let http_client = reqwest::Client::builder()
@@ -102,7 +102,7 @@ mod tests {
     use fake::faker::internet::en::SafeEmail;
     use fake::faker::lorem::en::{Paragraph, Sentence};
     use fake::{Fake, Faker};
-    use secrecy::Secret;
+    use secrecy::SecretString;
     use wiremock::http::Method;
     use wiremock::matchers::{any, header, header_exists, method, path};
     use wiremock::{Mock, MockServer, Request, ResponseTemplate};
@@ -128,8 +128,8 @@ mod tests {
         SubscriberEmail::parse(SafeEmail().fake()).unwrap()
     }
 
-    fn authorization_token() -> Secret<String> {
-        Secret::new(Faker.fake())
+    fn authorization_token() -> SecretString {
+        SecretString::new(Box::from(Faker.fake::<String>()))
     }
 
     fn subject() -> String {

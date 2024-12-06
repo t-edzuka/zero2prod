@@ -2,7 +2,7 @@ use crate::telemetry::spawn_blocking_with_tracing;
 use anyhow::Context;
 
 use argon2::{Algorithm, Argon2, Params, PasswordHash, PasswordHasher, PasswordVerifier, Version};
-use secrecy::{ExposeSecret, Secret};
+use secrecy::{ExposeSecret, SecretString};
 use sqlx::PgPool;
 
 use argon2::password_hash::SaltString;
@@ -19,7 +19,7 @@ pub enum AuthError {
 // This user input maps this struct, which is commonly called DTO: Data Transfer Object.
 pub struct Credentials {
     pub username: String,
-    pub password: Secret<String>,
+    pub password: SecretString,
 }
 
 #[tracing::instrument(name = "Validate credentials", skip(credentials, pool))]
@@ -29,12 +29,11 @@ pub async fn validate_credentials(
 ) -> Result<Uuid, AuthError> {
     // These two lines are for forcing calculating hash in blocking task.
     let mut user_id = None;
-    let mut expected_password_hash = Secret::new(
+    let mut expected_password_hash = SecretString::new(Box::from(
         "$argon2id$v=19$m=15000,t=2,p=1$\
         gZiV/M1gPc22ElAH/Jh1Hw$\
-        CWOrkoo7oJBQ/iyh7uJ0LO2aLEfrHwTWllSAxT0zRno"
-            .to_string(),
-    );
+        CWOrkoo7oJBQ/iyh7uJ0LO2aLEfrHwTWllSAxT0zRno",
+    ));
 
     // Fetch user information from the database
     if let Some((stored_user_id, stored_hash_password)) =
@@ -60,8 +59,8 @@ pub async fn validate_credentials(
     skip(expected_password_hash, password_candidate)
 )]
 fn verify_password_hash(
-    expected_password_hash: Secret<String>,
-    password_candidate: Secret<String>,
+    expected_password_hash: SecretString,
+    password_candidate: SecretString,
 ) -> Result<(), AuthError> {
     // Calculate the password hash by using the password_hash stored in the database, following PHC string format.
     let expected_password_hash = PasswordHash::new(expected_password_hash.expose_secret())
@@ -81,7 +80,7 @@ fn verify_password_hash(
 pub async fn get_stored_credentials(
     credentials: &Credentials,
     pool: &PgPool,
-) -> Result<Option<(Uuid, Secret<String>)>, anyhow::Error> {
+) -> Result<Option<(Uuid, SecretString)>, anyhow::Error> {
     let q = sqlx::query!(
         r#"
         SELECT user_id, password_hash
@@ -95,7 +94,7 @@ pub async fn get_stored_credentials(
         .fetch_optional(pool)
         .await
         .context("Failed to perform query to validate auth credentials.")?
-        .map(|row| (row.user_id, Secret::new(row.password_hash)));
+        .map(|row| (row.user_id, SecretString::new(Box::from(row.password_hash))));
     Ok(row)
 }
 
@@ -122,7 +121,7 @@ pub async fn change_password_in_db(
     Ok(())
 }
 
-fn compute_password_hash(password: Password) -> Result<Secret<String>, anyhow::Error> {
+fn compute_password_hash(password: Password) -> Result<SecretString, anyhow::Error> {
     // 1. Generate random salt
     let salt = SaltString::generate(&mut rand::thread_rng());
     // 2. Argon2 algorithm.
@@ -134,11 +133,11 @@ fn compute_password_hash(password: Password) -> Result<Secret<String>, anyhow::E
     .hash_password(password.expose_secret().as_bytes(), &salt)?
     .to_string();
 
-    Ok(Secret::new(password_hash))
+    Ok(SecretString::new(Box::from(password_hash)))
 }
 
 #[derive(Clone)]
-pub struct Password(Secret<String>);
+pub struct Password(SecretString);
 
 impl Password {
     /// # OWASP’s a minimum set of requirements for password
@@ -163,14 +162,14 @@ impl Password {
             ));
         }
 
-        Ok(Password(Secret::new(s)))
+        Ok(Password(SecretString::new(Box::from(s))))
     }
 
-    pub fn inner_ref(&self) -> &Secret<String> {
+    pub fn inner_ref(&self) -> &SecretString {
         &self.0
     }
 
-    pub fn expose_secret(&self) -> String {
-        self.0.expose_secret().clone()
+    pub fn expose_secret(&self) -> &str {
+        self.0.expose_secret()
     }
 }

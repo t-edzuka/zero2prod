@@ -1,4 +1,4 @@
-use secrecy::{ExposeSecret, Secret};
+use secrecy::{ExposeSecret, SecretString};
 use serde::Deserialize;
 use serde_aux::field_attributes::deserialize_number_from_string;
 use sqlx::postgres::{PgConnectOptions, PgSslMode};
@@ -16,7 +16,7 @@ pub struct Settings {
     pub database: DatabaseSettings,
     pub application: ApplicationSettings,
     pub email_client: EmailClientSettings,
-    pub redis_uri: Secret<String>,
+    pub redis_uri: SecretString,
 }
 
 #[derive(Deserialize, Clone)]
@@ -25,7 +25,7 @@ pub struct ApplicationSettings {
     #[serde(deserialize_with = "deserialize_number_from_string")]
     pub port: u16,
     pub base_url: String,
-    pub hmac_secret: Secret<String>,
+    pub hmac_secret: SecretString,
 }
 
 impl ApplicationSettings {
@@ -37,7 +37,7 @@ impl ApplicationSettings {
 #[derive(Deserialize, Clone)]
 pub struct DatabaseSettings {
     pub username: String,
-    pub password: Secret<String>,
+    pub password: SecretString,
     pub host: String,
     #[serde(deserialize_with = "deserialize_number_from_string")]
     pub port: u16,
@@ -62,7 +62,7 @@ impl DatabaseSettings {
 
     pub fn with_db(&self) -> PgConnectOptions {
         let opts = self.without_db().database(&self.database_name);
-        opts.log_statements(tracing_log::log::LevelFilter::Trace)
+        opts.log_statements(log::LevelFilter::Trace)
     }
 }
 
@@ -70,7 +70,7 @@ impl DatabaseSettings {
 pub struct EmailClientSettings {
     pub base_url: String,
     pub sender_email: String,
-    pub authorization_token: Secret<String>,
+    pub authorization_token: SecretString,
     pub timeout_milliseconds: u64,
 }
 
