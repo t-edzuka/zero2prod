@@ -8,7 +8,7 @@ use uuid::Uuid;
 use crate::idempotency::IdempotencyKey;
 
 #[derive(Debug, sqlx::Type)]
-#[sqlx(type_name = "header_pair")]
+#[sqlx(type_name = "header_pair", no_pg_array)]
 struct HeaderPairRecord {
     name: String,
     value: Vec<u8>,
