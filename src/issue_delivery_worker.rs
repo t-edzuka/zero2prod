@@ -26,8 +26,8 @@ pub async fn try_execute_task(
         },
     ) = maybe_task.unwrap();
     Span::current()
-        .record("newsletter_issue_id", &display(newsletter_issue_id))
-        .record("email", &display(&subscriber_email));
+        .record("newsletter_issue_id", display(newsletter_issue_id))
+        .record("email", display(&subscriber_email));
 
     let max_n_retries = 3;
 

@@ -54,7 +54,7 @@ impl EmailClient {
 
         let _request_result = self
             .http_client
-            .post(&self.url())
+            .post(self.url())
             .header(
                 "X-Postmark-Server-Token",
                 self.authorization_token.expose_secret(),

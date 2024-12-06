@@ -48,10 +48,10 @@ pub async fn login(
         username: form.0.username,
         password: form.0.password,
     };
-    tracing::Span::current().record("username", &tracing::field::display(&credentials.username));
+    tracing::Span::current().record("username", tracing::field::display(&credentials.username));
     match validate_credentials(credentials, &pool).await {
         Ok(user_id) => {
-            tracing::Span::current().record("user_id", &tracing::field::display(&user_id));
+            tracing::Span::current().record("user_id", tracing::field::display(&user_id));
             // セッション固定攻撃（Session Fixation Attack）対策.
             // 攻撃者が事前にセッショントークンをユーザーのブラウザに固定（または「植え付け」）を行ったとしても
             // ログインに成功した時点でSessionを更新してしまえば良い.
