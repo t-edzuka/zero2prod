@@ -12,7 +12,7 @@ path = "src/main.rs"
 
 [dependencies]
 actix-session = { version = "0.10.1", features = ["redis-session-native-tls"] }
-actix-web = "4.5.1"
+actix-web = "4.9.0"
 actix-web-flash-messages = { version = "0.5.0", features = ["cookies"] }
 anyhow = "1.0.82"
 argon2 = { version = "0.5.3", features = ["std"] }
@@ -50,7 +50,7 @@ features = [
     "migrate",
     "runtime-tokio-rustls",
 ]
-version = "0.8.2"
+version = "0.8.3"
 
 
 [dev-dependencies]
