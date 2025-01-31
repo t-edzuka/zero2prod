@@ -17,7 +17,7 @@ actix-web-flash-messages = { version = "0.5.0", features = ["cookies"] }
 anyhow = "1.0.82"
 argon2 = { version = "0.5.3", features = ["std"] }
 chrono = { version = "0.4.38", default-features = false, features = ["clock"] }
-config = { version = "0.14.1", git = "https://github.com/mehcode/config-rs" }
+config = { version = "0.15.7" }
 log = "0.4.21"
 rand = { version = "0.8.5", features = ["std_rng"] }
 reqwest = { version = "0.12.4", default-features = false, features = [
