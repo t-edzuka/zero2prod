@@ -45,7 +45,7 @@ jobs:
         # The uses keyword specifies that this step will run v3 of the actions/checkout action.
         # This is an action that checks out your repository onto the runner, allowing you to run scripts or other actions against your code (such as build and test tools).
         # You should use the checkout action any time your workflow will run against the repository's code.
-        uses: actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955 # v4
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5
 
         # This GitHub Action installs a Rust toolchain using rustup. It is designed for one-line concise usage and good defaults.
       - name: Install the Rust toolchain
@@ -83,7 +83,7 @@ jobs:
     name: Rustfmt
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955 # v4
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt
@@ -103,7 +103,7 @@ jobs:
         ports:
           - 5432:5432
     steps:
-      - uses: actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955 # v4
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: clippy
